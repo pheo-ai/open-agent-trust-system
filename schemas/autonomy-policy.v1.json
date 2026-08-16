@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opensharing.io/schemas/stl/autonomy-policy.v1.json",
+  "title": "Autonomy Policy",
+  "type": "object",
+  "required": ["schema", "policy_id", "version", "skill_ref", "action_classes"],
+  "properties": {
+    "schema": {"const": "stl.policy/v1"},
+    "policy_id": {"type": "string"},
+    "version": {"type": "string"},
+    "skill_ref": {"type": "object", "required": ["skill_id", "version"]},
+    "action_classes": {"type": "object", "minProperties": 1},
+    "promotion": {"type": "object"},
+    "rollback": {"type": "object"}
+  },
+  "additionalProperties": false
+}

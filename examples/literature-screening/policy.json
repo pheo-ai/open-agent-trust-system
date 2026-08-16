@@ -1,0 +1,32 @@
+{
+  "schema": "stl.policy/v1",
+  "policy_id": "com.example.literature-screening-policy",
+  "version": "1.0.0",
+  "skill_ref": {
+    "skill_id": "com.example.literature-screening",
+    "version": "0.1.0"
+  },
+  "action_classes": {
+    "deduplicate_papers": {
+      "autonomy_state": "bounded_autonomous",
+      "human_approval": "not_required"
+    },
+    "propose_inclusion": {
+      "autonomy_state": "supervised",
+      "human_approval": "required"
+    },
+    "propose_exclusion": {
+      "autonomy_state": "supervised",
+      "human_approval": "required"
+    }
+  },
+  "promotion": {
+    "minimum_reviewed_cases": 200,
+    "critical_error_limit": 0,
+    "human_authorization_required": true
+  },
+  "rollback": {
+    "critical_error": "demote_to_supervised",
+    "policy_change": "demote_to_supervised"
+  }
+}

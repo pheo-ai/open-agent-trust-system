@@ -1,0 +1,16 @@
+{
+  "schema": "stl.policy/v1",
+  "policy_id": "com.example.coding-agent-policy",
+  "version": "1.0.0",
+  "skill_ref": {
+    "skill_id": "com.example.coding-agent",
+    "version": "0.1.0"
+  },
+  "action_classes": {
+    "read_files": {"autonomy_state": "bounded_autonomous", "human_approval": "not_required"},
+    "propose_patch": {"autonomy_state": "supervised", "human_approval": "required"},
+    "apply_patch": {"autonomy_state": "act_with_approval", "human_approval": "required"},
+    "commit": {"autonomy_state": "act_with_approval", "human_approval": "required"},
+    "deploy": {"autonomy_state": "revoked", "human_approval": "required"}
+  }
+}

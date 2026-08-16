@@ -1,0 +1,23 @@
+{
+  "schema": "stl.policy/v1",
+  "policy_id": "com.example.marketing-review-policy",
+  "version": "1.0.0",
+  "skill_ref": {
+    "skill_id": "com.example.marketing-review",
+    "version": "0.1.0"
+  },
+  "action_classes": {
+    "generate_candidates": {
+      "autonomy_state": "bounded_autonomous",
+      "human_approval": "not_required"
+    },
+    "select_candidate": {
+      "autonomy_state": "supervised",
+      "human_approval": "required"
+    },
+    "publish_campaign": {
+      "autonomy_state": "revoked",
+      "human_approval": "required"
+    }
+  }
+}

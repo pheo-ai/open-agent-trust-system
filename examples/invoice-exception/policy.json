@@ -1,0 +1,36 @@
+{
+  "schema": "stl.policy/v1",
+  "policy_id": "com.example.invoice-exception-policy",
+  "version": "1.0.0",
+  "skill_ref": {
+    "skill_id": "com.example.invoice-exception",
+    "version": "0.1.0"
+  },
+  "action_classes": {
+    "summarize_exception": {
+      "autonomy_state": "bounded_autonomous",
+      "human_approval": "not_required"
+    },
+    "recommend_treatment": {
+      "autonomy_state": "supervised",
+      "human_approval": "required"
+    },
+    "clear_exception": {
+      "autonomy_state": "revoked",
+      "human_approval": "required"
+    },
+    "approve_payment": {
+      "autonomy_state": "revoked",
+      "human_approval": "required"
+    }
+  },
+  "promotion": {
+    "minimum_reviewed_cases": 100,
+    "critical_error_limit": 0,
+    "human_authorization_required": true
+  },
+  "rollback": {
+    "missing_evidence": "demote_to_supervised",
+    "critical_error": "revoke"
+  }
+}

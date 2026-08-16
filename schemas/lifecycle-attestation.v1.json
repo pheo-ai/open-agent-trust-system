@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opensharing.io/schemas/stl/lifecycle-attestation.v1.json",
+  "title": "Skill Lifecycle Attestation",
+  "type": "object",
+  "required": ["schema", "attestation_id", "subject", "event", "issuer", "issued_at", "signature"],
+  "properties": {
+    "schema": {"const": "stl.attestation/v1"},
+    "attestation_id": {"type": "string"},
+    "subject": {"type": "object", "required": ["skill_id", "version", "artifact_digest"]},
+    "event": {"enum": ["published", "verified", "approved_for_use", "promoted", "demoted", "revoked", "yanked", "expired"]},
+    "issuer": {"type": "object", "required": ["id"]},
+    "provenance": {"type": "object"},
+    "checks": {"type": "array"},
+    "autonomy_policy_ref": {"type": "string"},
+    "status": {"enum": ["active", "revoked", "yanked", "expired"]},
+    "issued_at": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "signature": {"type": "object", "required": ["algorithm", "key_id", "value"]}
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opensharing.io/schemas/stl/autonomy-transition.v1.json",
+  "title": "Autonomy Transition",
+  "type": "object",
+  "required": ["schema", "transition_id", "skill_ref", "action_class", "from_state", "to_state", "evidence", "authorization", "scope", "status"],
+  "properties": {
+    "schema": {"const": "stl.transition/v1"},
+    "transition_id": {"type": "string"},
+    "skill_ref": {"type": "object", "required": ["skill_id", "version"]},
+    "action_class": {"type": "string"},
+    "from_state": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
+    "to_state": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
+    "evidence": {"type": "object"},
+    "authorization": {"type": "object", "required": ["authorized"]},
+    "scope": {"type": "object"},
+    "status": {"enum": ["active", "superseded", "revoked"]}
+  },
+  "additionalProperties": false
+}
