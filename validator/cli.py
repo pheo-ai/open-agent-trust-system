@@ -1,4 +1,4 @@
-"""Command-line validator for Open Agent Trust profile documents."""
+"""Command-line validator for Open Agent Trust System profile documents."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from .core import (
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate Open Agent Trust JSON")
+    parser = argparse.ArgumentParser(description="Validate Open Agent Trust System JSON")
     parser.add_argument("kind", choices=["skill", "policy", "attestation", "action_receipt", "transition"])
     parser.add_argument("path", type=Path)
     args = parser.parse_args()

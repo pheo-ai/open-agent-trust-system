@@ -1,5 +1,5 @@
 {
-  "schema": "oat.policy/v1",
+  "schema": "oats.policy/v1",
   "policy_id": "com.example.literature-screening-policy",
   "version": "1.0.0",
   "skill_ref": {

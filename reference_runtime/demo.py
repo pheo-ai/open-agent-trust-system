@@ -7,7 +7,7 @@ from reference_runtime.runtime import GovernanceRuntime
 
 
 SKILL = {
-    "schema": "oat.skill/v1",
+    "schema": "oats.skill/v1",
     "skill_id": "com.example.coding-agent",
     "version": "0.1.0",
     "artifact": {"uri": "file://./skill", "digest": "sha256:89726b6a862b095593c49029534231a074a01c835ed0766705b866d5239f94a5"},
@@ -18,7 +18,7 @@ SKILL = {
 }
 
 POLICY = {
-    "schema": "oat.policy/v1",
+    "schema": "oats.policy/v1",
     "policy_id": "com.example.coding-agent-policy",
     "version": "1.0.0",
     "skill_ref": {"skill_id": SKILL["skill_id"], "version": SKILL["version"], "manifest_digest": digest(SKILL)},
@@ -56,7 +56,7 @@ def main() -> None:
         f"{transition['action_class']} {transition['from_state']} -> {transition['to_state']}"
     )
     if last_receipt:
-        signed = sign_receipt_hmac(last_receipt, key_id="demo-review-key", secret=b"open-agent-trust-demo")
+        signed = sign_receipt_hmac(last_receipt, key_id="demo-review-key", secret=b"open-agent-trust-system-demo")
         validate_action_receipt(signed)
         print(f"receipt digest created: {signed['integrity']['receipt_digest']}")
         print(f"receipt signature: {signed['signature']['algorithm']} {signed['signature']['key_id']}")

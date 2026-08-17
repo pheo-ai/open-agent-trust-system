@@ -1,1 +1,1 @@
-"""Validation helpers for Open Agent Trust."""
+"""Validation helpers for Open Agent Trust System."""

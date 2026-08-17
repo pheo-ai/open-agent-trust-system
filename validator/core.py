@@ -1,4 +1,4 @@
-"""Dependency-free checks for Open Agent Trust profile documents.
+"""Dependency-free checks for Open Agent Trust System profile documents.
 
 The JSON Schemas are the interoperability contract. These checks add
 runtime-facing invariants without requiring jsonschema or a signing service.
@@ -57,11 +57,11 @@ def _action_class(value: Any, field: str) -> None:
 def validate_document(document: Mapping[str, Any], kind: str) -> Dict[str, Any]:
     """Validate the common shape of a profile document."""
     expected = {
-        "skill": "oat.skill/v1",
-        "policy": "oat.policy/v1",
-        "attestation": "oat.attestation/v1",
-        "action_receipt": "oat.action-receipt/v1",
-        "transition": "oat.transition/v1",
+        "skill": "oats.skill/v1",
+        "policy": "oats.policy/v1",
+        "attestation": "oats.attestation/v1",
+        "action_receipt": "oats.action-receipt/v1",
+        "transition": "oats.transition/v1",
     }.get(kind)
     if expected is None:
         raise ValidationError(f"unsupported document kind: {kind}")

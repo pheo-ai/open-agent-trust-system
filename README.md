@@ -1,10 +1,10 @@
-# Open Agent Trust
+# OATS: Open Agent Trust System
 
-A vendor-neutral profile for agent authority, lifecycle evidence, and release receipts.
+A vendor-neutral profile and reference runtime for agent authority, lifecycle evidence, and release receipts.
 
-## The Problem In 60 Seconds
+## The Problem
 
-AI skills and agents are becoming portable executable assets. OpenSharing can exchange them. MCP can connect them to tools. But enterprises still need a common way to answer the questions that matter before an agent acts:
+AI agents and skills are becoming portable executable assets. Enterprises need a common way to answer the questions that matter before an agent acts:
 
 - What is this agent or skill allowed to do?
 - Who granted that authority?
@@ -13,7 +13,7 @@ AI skills and agents are becoming portable executable assets. OpenSharing can ex
 - What receipt proves the decision?
 - Can another system verify the evidence without receiving private data?
 
-Open Agent Trust defines the minimum portable objects for that boundary: authority policy, lifecycle state, action receipts, and autonomy transitions.
+OATS defines the minimum portable objects for that boundary: authority policy, lifecycle state, action receipts, and autonomy transitions.
 
 ```text
 portable agent or skill
@@ -29,11 +29,11 @@ Commercial runtimes may implement this profile; this reference package is vendor
 ## What This Repo Contains
 
 ```text
-schemas/             JSON Schema draft 2020-12 documents
+schemas/             JSON Schema drafts
 validator/           dependency-free profile and policy checks
-reference_runtime/   tiny policy gate, receipt emitter, transition demo
+reference_runtime/   OATS Reference Runtime: tiny policy gate, receipt emitter, transition demo
 examples/            coding, invoice, literature, and marketing policies
-tests/               executable contract tests
+tests/               executable contract and threat-model tests
 docs/                OpenSharing, MCP, problem, and threat-model notes
 ```
 
@@ -57,6 +57,7 @@ commit: pending_review -> approved
 deploy: blocked
 demotion emitted
 receipt digest created
+receipt signature: HMAC-SHA256 demo-review-key
 ```
 
 ## Core Objects
@@ -78,11 +79,17 @@ observe -> supervised -> act_with_approval -> bounded_autonomous
 
 `revoked` is terminal until a new approval process explicitly restores use. Authority is applied per action class, not only per agent or skill.
 
+## Action Receipt Semantics
+
+An `ActionReceipt` records the governed decision for a single action request. It binds together artifact identity, action class, exact request digest, policy digest, autonomy state, decision, timestamp, and receipt digest.
+
+The request digest enables exact-payload approval. If the payload changes, the previous approval no longer applies.
+
 ## Boundaries
 
-Open Agent Trust does not define a marketplace, agent runtime, model provider, identity provider, storage service, compliance certification, or UI. Portable documents should contain identifiers, references, digests, and minimum necessary decision metadata. Raw prompts, source code, research papers, invoices, emails, and personal data should remain in customer-controlled stores.
+OATS does not define a marketplace, agent runtime, model provider, identity provider, storage service, compliance certification, or UI. Portable documents should contain identifiers, references, digests, and minimum necessary decision metadata. Raw prompts, source code, research papers, invoices, emails, and personal data should remain in customer-controlled stores.
 
-OpenSharing can handle exchange. MCP can handle tool connectivity. Open Agent Trust defines authority, receipts, and lifecycle evidence.
+OpenSharing can handle exchange. MCP can handle tool connectivity. OATS defines authority, receipts, and lifecycle evidence.
 
 ## Status
 

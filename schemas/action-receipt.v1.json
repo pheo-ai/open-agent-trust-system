@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.openagenttrust.org/v1/action-receipt.v1.json",
-  "title": "Open Agent Trust Action Receipt",
+  "$id": "https://schemas.openagenttrustsystem.org/v1/action-receipt.v1.json",
+  "title": "Open Agent Trust System Action Receipt",
   "type": "object",
   "required": ["schema", "receipt_id", "skill_ref", "action", "policy_ref", "autonomy", "decision", "timestamps", "integrity"],
   "properties": {
-    "schema": {"const": "oat.action-receipt/v1"},
+    "schema": {"const": "oats.action-receipt/v1"},
     "receipt_id": {"type": "string", "minLength": 8},
     "skill_ref": {
       "type": "object",

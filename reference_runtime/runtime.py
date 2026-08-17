@@ -87,7 +87,7 @@ class GovernanceRuntime:
         self.state[action_class] = to_state
         self._transition_sequence += 1
         transition = {
-            "schema": "oat.transition/v1",
+            "schema": "oats.transition/v1",
             "transition_id": f"transition-{self._transition_sequence}-{action_class}",
             "skill_ref": {
                 "skill_id": self.skill["skill_id"],
@@ -122,7 +122,7 @@ class GovernanceRuntime:
         self._receipt_sequence += 1
         req_digest = request_digest(request)
         receipt = {
-            "schema": "oat.action-receipt/v1",
+            "schema": "oats.action-receipt/v1",
             "receipt_id": f"receipt-{self._receipt_sequence}-{action_class}-{req_digest[-12:]}",
             "skill_ref": {
                 "skill_id": self.skill["skill_id"],

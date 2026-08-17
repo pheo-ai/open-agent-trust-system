@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.openagenttrust.org/v1/skill-manifest.v1.json",
-  "title": "Open Agent Trust Skill Manifest",
+  "$id": "https://schemas.openagenttrustsystem.org/v1/skill-manifest.v1.json",
+  "title": "Open Agent Trust System Skill Manifest",
   "type": "object",
   "required": ["schema", "skill_id", "version", "artifact", "publisher", "capabilities"],
   "properties": {
-    "schema": {"const": "oat.skill/v1"},
+    "schema": {"const": "oats.skill/v1"},
     "skill_id": {"type": "string", "minLength": 3, "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._:-]*$"},
     "version": {"type": "string", "minLength": 1},
     "artifact": {

@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.openagenttrust.org/v1/autonomy-policy.v1.json",
-  "title": "Open Agent Trust Autonomy Policy",
+  "$id": "https://schemas.openagenttrustsystem.org/v1/autonomy-policy.v1.json",
+  "title": "Open Agent Trust System Autonomy Policy",
   "type": "object",
   "required": ["schema", "policy_id", "version", "skill_ref", "action_classes"],
   "properties": {
-    "schema": {"const": "oat.policy/v1"},
+    "schema": {"const": "oats.policy/v1"},
     "policy_id": {"type": "string", "minLength": 3},
     "version": {"type": "string", "minLength": 1},
     "skill_ref": {

@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.openagenttrust.org/v1/autonomy-transition.v1.json",
-  "title": "Open Agent Trust Autonomy Transition",
+  "$id": "https://schemas.openagenttrustsystem.org/v1/autonomy-transition.v1.json",
+  "title": "Open Agent Trust System Autonomy Transition",
   "type": "object",
   "required": ["schema", "transition_id", "skill_ref", "action_class", "from_state", "to_state", "evidence", "authorization", "scope", "status", "occurred_at", "integrity"],
   "properties": {
-    "schema": {"const": "oat.transition/v1"},
+    "schema": {"const": "oats.transition/v1"},
     "transition_id": {"type": "string", "minLength": 8},
     "skill_ref": {
       "type": "object",

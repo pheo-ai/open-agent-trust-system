@@ -16,7 +16,7 @@ from validator.core import (
 
 
 SKILL = {
-    "schema": "oat.skill/v1",
+    "schema": "oats.skill/v1",
     "skill_id": "com.example.test",
     "version": "1.0.0",
     "artifact": {"uri": "file://skill", "digest": "sha256:bf0ec63b970d163d9ae2f54383a102f6a83a9d905f5ef4cf5ee809d855e26efa"},
@@ -25,7 +25,7 @@ SKILL = {
 }
 
 POLICY = {
-    "schema": "oat.policy/v1",
+    "schema": "oats.policy/v1",
     "policy_id": "com.example.policy",
     "version": "1.0.0",
     "skill_ref": {"skill_id": SKILL["skill_id"], "version": SKILL["version"], "manifest_digest": digest(SKILL)},
@@ -39,7 +39,7 @@ POLICY = {
 
 class RuntimeTests(unittest.TestCase):
     def test_skill_manifest_validates(self):
-        self.assertEqual(validate_skill(SKILL)["schema"], "oat.skill/v1")
+        self.assertEqual(validate_skill(SKILL)["schema"], "oats.skill/v1")
 
     def test_policy_rejects_approval_required_autonomy(self):
         invalid = {**POLICY, "action_classes": {

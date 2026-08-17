@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://schemas.openagenttrust.org/v1/lifecycle-attestation.v1.json",
-  "title": "Open Agent Trust Lifecycle Attestation",
+  "$id": "https://schemas.openagenttrustsystem.org/v1/lifecycle-attestation.v1.json",
+  "title": "Open Agent Trust System Lifecycle Attestation",
   "type": "object",
   "required": ["schema", "attestation_id", "subject", "event", "issuer", "issued_at", "signature"],
   "properties": {
-    "schema": {"const": "oat.attestation/v1"},
+    "schema": {"const": "oats.attestation/v1"},
     "attestation_id": {"type": "string", "minLength": 8},
     "subject": {
       "type": "object",
