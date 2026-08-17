@@ -1,10 +1,10 @@
 # OATS: Open Agent Trust System
 
-A vendor-neutral profile for agent authority, lifecycle evidence, and release receipts.
+A profile for agent authority, lifecycle evidence, and release receipts.
 
-## The Problem In 60 Seconds
+## The Problem
 
-AI skills and agents are becoming portable executable assets. OpenSharing can exchange them. MCP can connect them to tools. But enterprises still need a common way to answer the questions that matter before an agent acts:
+AI skills and agents are becoming portable executable assets. Developers need a common way to answer the questions that matter before an agent acts:
 
 - What is this agent or skill allowed to do?
 - Who granted that authority?
@@ -24,12 +24,10 @@ portable agent or skill
   -> AutonomyTransition / LifecycleAttestation
 ```
 
-Commercial runtimes may implement this profile; this reference package is vendor-neutral.
-
 ## What This Repo Contains
 
 ```text
-schemas/             JSON Schema draft 2020-12 documents
+schemas/             JSON Schema draft 
 validator/           dependency-free profile and policy checks
 reference_runtime/   OATS Reference Runtime: policy gate, receipt emitter, transition demo
 examples/            coding, invoice, literature, and marketing policies
@@ -78,12 +76,3 @@ observe -> supervised -> act_with_approval -> bounded_autonomous
 
 `revoked` is terminal until a new approval process explicitly restores use. Authority is applied per action class, not only per agent or skill.
 
-## Boundaries
-
-OATS does not define a marketplace, agent runtime, model provider, identity provider, storage service, compliance certification, or UI. Portable documents should contain identifiers, references, digests, and minimum necessary decision metadata. Raw prompts, source code, research papers, invoices, emails, and personal data should remain in customer-controlled stores.
-
-OpenSharing can handle exchange. MCP can handle tool connectivity. OATS defines authority, receipts, and lifecycle evidence.
-
-## Status
-
-Draft reference implementation for private community review. This is not currently a Linux Foundation project and does not imply Linux Foundation endorsement.
