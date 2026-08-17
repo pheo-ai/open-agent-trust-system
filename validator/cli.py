@@ -10,7 +10,7 @@ from .core import ValidationError, validate_document, validate_policy
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate Skill Trust Lifecycle JSON")
+    parser = argparse.ArgumentParser(description="Validate Open Agent Trust JSON")
     parser.add_argument("kind", choices=("skill", "policy", "attestation", "action_receipt", "transition"))
     parser.add_argument("path", type=Path)
     args = parser.parse_args()

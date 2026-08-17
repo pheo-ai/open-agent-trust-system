@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://opensharing.io/schemas/stl/skill-manifest.v1.json",
-  "title": "Skill Trust and Lifecycle Profile",
+  "$id": "https://schemas.openagenttrust.org/v1/skill-manifest.v1.json",
+  "title": "Open Agent Trust Profile",
   "type": "object",
   "required": ["schema", "skill_id", "version", "artifact", "publisher", "capabilities"],
   "properties": {
-    "schema": {"const": "stl.skill/v1"},
+    "schema": {"const": "oat.skill/v1"},
     "skill_id": {"type": "string", "minLength": 1},
     "version": {"type": "string", "minLength": 1},
     "artifact": {"type": "object", "required": ["uri", "digest"], "properties": {"uri": {"type": "string"}, "digest": {"type": "string"}, "license": {"type": "string"}}, "additionalProperties": false},

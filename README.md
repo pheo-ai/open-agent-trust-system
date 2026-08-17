@@ -1,22 +1,22 @@
-# OpenSharing Skill Trust & Lifecycle Profile
+# Open Agent Trust
 
-A small, vendor-neutral profile for AI skill authority, lifecycle state, and action receipts.
+A vendor-neutral profile for agent authority, lifecycle evidence, and release receipts.
 
-## The problem in 60 seconds
+## The Problem In 60 Seconds
 
-AI skills are becoming portable executable assets. OpenSharing can exchange those assets. MCP can connect agents to tools. But enterprises still need a portable way to answer the questions that matter before a skill acts:
+AI skills and agents are becoming portable executable assets. OpenSharing can exchange them. MCP can connect them to tools. But enterprises still need a common way to answer the questions that matter before an agent acts:
 
-- What is this skill allowed to do?
-- Who authorized that authority?
+- What is this agent or skill allowed to do?
+- Who granted that authority?
 - Did this exact action require review?
-- What payload was approved or blocked?
-- When should autonomy be promoted, demoted, or revoked?
-- Can another system verify the evidence without receiving raw customer data?
+- What was approved, blocked, or demoted?
+- What receipt proves the decision?
+- Can another system verify the evidence without receiving private data?
 
-This profile defines the minimum vocabulary and evidence format for that boundary.
+Open Agent Trust defines the minimum portable objects for that boundary: authority policy, lifecycle state, action receipts, and autonomy transitions.
 
 ```text
-OpenSharing AgentSkill
+portable agent or skill
   -> SkillManifest
   -> AutonomyPolicy
   -> governed action
@@ -26,7 +26,7 @@ OpenSharing AgentSkill
 
 Commercial runtimes may implement this profile; this reference package is vendor-neutral.
 
-## What this repo contains
+## What This Repo Contains
 
 ```text
 schemas/             JSON Schema draft 2020-12 documents
@@ -34,9 +34,10 @@ validator/           dependency-free profile and policy checks
 reference_runtime/   tiny policy gate, receipt emitter, transition demo
 examples/            coding, invoice, literature, and marketing policies
 tests/               executable contract tests
+docs/                OpenSharing, MCP, problem, and threat-model notes
 ```
 
-## Quick start
+## Quick Start
 
 Requires Python 3.9+ and no third-party dependencies.
 
@@ -58,15 +59,15 @@ demotion emitted
 receipt digest created
 ```
 
-## Core objects
+## Core Objects
 
-- `SkillManifest`: identifies a versioned skill artifact and declared action classes.
+- `SkillManifest`: identifies a versioned agent or skill artifact and declared action classes.
 - `AutonomyPolicy`: maps action classes to authority states and oversight requirements.
 - `LifecycleAttestation`: records publisher, provenance, status, and lifecycle events.
 - `ActionReceipt`: records a governed action request, decision, policy, and digest.
 - `AutonomyTransition`: records evidence-backed promotion, demotion, rollback, or revocation.
 
-## Lifecycle states
+## Lifecycle States
 
 ```text
 observe -> supervised -> act_with_approval -> bounded_autonomous
@@ -75,11 +76,13 @@ observe -> supervised -> act_with_approval -> bounded_autonomous
                  demotion / rollback
 ```
 
-`revoked` is terminal until a new approval process explicitly restores use. Autonomy is applied per action class, not only per skill.
+`revoked` is terminal until a new approval process explicitly restores use. Authority is applied per action class, not only per agent or skill.
 
-## Design boundaries
+## Boundaries
 
-This profile does not define a marketplace, agent runtime, model provider, identity provider, storage service, or compliance certification. Portable documents should contain identifiers, references, digests, and minimum necessary decision metadata. Raw prompts, source code, research papers, invoices, and personal data should remain in customer-controlled stores.
+Open Agent Trust does not define a marketplace, agent runtime, model provider, identity provider, storage service, compliance certification, or UI. Portable documents should contain identifiers, references, digests, and minimum necessary decision metadata. Raw prompts, source code, research papers, invoices, emails, and personal data should remain in customer-controlled stores.
+
+OpenSharing can handle exchange. MCP can handle tool connectivity. Open Agent Trust defines authority, receipts, and lifecycle evidence.
 
 ## Status
 

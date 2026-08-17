@@ -31,11 +31,11 @@ def _schema(document: Mapping[str, Any], expected: str) -> None:
 def validate_document(document: Mapping[str, Any], kind: str) -> Dict[str, Any]:
     """Validate the common shape of a profile document."""
     expected = {
-        "skill": "stl.skill/v1",
-        "policy": "stl.policy/v1",
-        "attestation": "stl.attestation/v1",
-        "action_receipt": "stl.action-receipt/v1",
-        "transition": "stl.transition/v1",
+        "skill": "oat.skill/v1",
+        "policy": "oat.policy/v1",
+        "attestation": "oat.attestation/v1",
+        "action_receipt": "oat.action-receipt/v1",
+        "transition": "oat.transition/v1",
     }.get(kind)
     if expected is None:
         raise ValidationError(f"unsupported document kind: {kind}")

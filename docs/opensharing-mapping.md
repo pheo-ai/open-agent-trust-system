@@ -15,4 +15,4 @@ This profile is intended to compose with OpenSharing `AgentSkill` assets.
 
 ## Boundary
 
-OpenSharing can define how an AI asset is exchanged. This profile defines portable trust and lifecycle evidence around that asset. It does not replace OpenSharing transport, discovery, credential vending, or access APIs.
+OpenSharing can define how an AI asset is exchanged. This profile defines portable authority and lifecycle evidence around that asset. It does not replace OpenSharing transport, discovery, credential vending, or access APIs.

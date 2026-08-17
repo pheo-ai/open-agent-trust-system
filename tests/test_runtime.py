@@ -5,7 +5,7 @@ from validator.core import ValidationError, digest, validate_policy
 
 
 SKILL = {
-    "schema": "stl.skill/v1",
+    "schema": "oat.skill/v1",
     "skill_id": "com.example.test",
     "version": "1.0.0",
     "artifact": {"uri": "file://skill", "digest": "sha256:test"},
@@ -14,7 +14,7 @@ SKILL = {
 }
 
 POLICY = {
-    "schema": "stl.policy/v1",
+    "schema": "oat.policy/v1",
     "policy_id": "com.example.policy",
     "version": "1.0.0",
     "skill_ref": {"skill_id": SKILL["skill_id"], "version": SKILL["version"]},

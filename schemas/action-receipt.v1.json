@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://opensharing.io/schemas/stl/action-receipt.v1.json",
+  "$id": "https://schemas.openagenttrust.org/v1/action-receipt.v1.json",
   "title": "Governed Action Receipt",
   "type": "object",
   "required": ["schema", "receipt_id", "skill_ref", "action", "policy_ref", "autonomy", "decision", "timestamps", "integrity"],
   "properties": {
-    "schema": {"const": "stl.action-receipt/v1"},
+    "schema": {"const": "oat.action-receipt/v1"},
     "receipt_id": {"type": "string"},
     "skill_ref": {"type": "object", "required": ["skill_id", "version", "manifest_digest"]},
     "action": {"type": "object", "required": ["class", "request_digest"]},

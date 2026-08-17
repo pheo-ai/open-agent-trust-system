@@ -1,4 +1,4 @@
-"""Validation helpers for the Skill Trust & Lifecycle Profile."""
+"""Validation helpers for the Open Agent Trust."""
 
 from .core import ValidationError, validate_document, validate_policy
 

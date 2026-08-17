@@ -1,5 +1,5 @@
 {
-  "schema": "stl.policy/v1",
+  "schema": "oat.policy/v1",
   "policy_id": "com.example.invoice-exception-policy",
   "version": "1.0.0",
   "skill_ref": {

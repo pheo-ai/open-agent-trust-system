@@ -75,7 +75,7 @@ class GovernanceRuntime:
         before = self.state[action_class]
         self.state[action_class] = "supervised"
         return {
-            "schema": "stl.transition/v1",
+            "schema": "oat.transition/v1",
             "transition_id": f"transition-{action_class}-{len(trigger)}",
             "skill_ref": {
                 "skill_id": self.skill["skill_id"],
@@ -99,7 +99,7 @@ class GovernanceRuntime:
         approved_by: Optional[str] = None,
     ) -> Decision:
         receipt = {
-            "schema": "stl.action-receipt/v1",
+            "schema": "oat.action-receipt/v1",
             "receipt_id": f"receipt-{action_class}-{status}",
             "skill_ref": {
                 "skill_id": self.skill["skill_id"],

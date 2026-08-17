@@ -7,7 +7,7 @@ from reference_runtime.runtime import GovernanceRuntime
 
 
 SKILL = {
-    "schema": "stl.skill/v1",
+    "schema": "oat.skill/v1",
     "skill_id": "com.example.coding-agent",
     "version": "0.1.0",
     "artifact": {"uri": "file://./skill", "digest": "sha256:demo"},
@@ -18,7 +18,7 @@ SKILL = {
 }
 
 POLICY = {
-    "schema": "stl.policy/v1",
+    "schema": "oat.policy/v1",
     "policy_id": "com.example.coding-agent-policy",
     "version": "1.0.0",
     "skill_ref": {"skill_id": SKILL["skill_id"], "version": SKILL["version"]},

@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://opensharing.io/schemas/stl/autonomy-transition.v1.json",
+  "$id": "https://schemas.openagenttrust.org/v1/autonomy-transition.v1.json",
   "title": "Autonomy Transition",
   "type": "object",
   "required": ["schema", "transition_id", "skill_ref", "action_class", "from_state", "to_state", "evidence", "authorization", "scope", "status"],
   "properties": {
-    "schema": {"const": "stl.transition/v1"},
+    "schema": {"const": "oat.transition/v1"},
     "transition_id": {"type": "string"},
     "skill_ref": {"type": "object", "required": ["skill_id", "version"]},
     "action_class": {"type": "string"},
