@@ -1,10 +1,10 @@
 # OATS: Open Agent Trust System
 
-A vendor-neutral profile and reference runtime for agent authority, lifecycle evidence, and release receipts.
+A vendor-neutral profile for agent authority, lifecycle evidence, and release receipts.
 
-## The Problem
+## The Problem In 60 Seconds
 
-AI agents and skills are becoming portable executable assets. Enterprises need a common way to answer the questions that matter before an agent acts:
+AI skills and agents are becoming portable executable assets. OpenSharing can exchange them. MCP can connect them to tools. But enterprises still need a common way to answer the questions that matter before an agent acts:
 
 - What is this agent or skill allowed to do?
 - Who granted that authority?
@@ -29,11 +29,11 @@ Commercial runtimes may implement this profile; this reference package is vendor
 ## What This Repo Contains
 
 ```text
-schemas/             JSON Schema drafts
+schemas/             JSON Schema draft 2020-12 documents
 validator/           dependency-free profile and policy checks
-reference_runtime/   OATS Reference Runtime: tiny policy gate, receipt emitter, transition demo
+reference_runtime/   OATS Reference Runtime: policy gate, receipt emitter, transition demo
 examples/            coding, invoice, literature, and marketing policies
-tests/               executable contract and threat-model tests
+tests/               executable contract tests
 docs/                OpenSharing, MCP, problem, and threat-model notes
 ```
 
@@ -57,7 +57,6 @@ commit: pending_review -> approved
 deploy: blocked
 demotion emitted
 receipt digest created
-receipt signature: HMAC-SHA256 demo-review-key
 ```
 
 ## Core Objects
@@ -78,12 +77,6 @@ observe -> supervised -> act_with_approval -> bounded_autonomous
 ```
 
 `revoked` is terminal until a new approval process explicitly restores use. Authority is applied per action class, not only per agent or skill.
-
-## Action Receipt Semantics
-
-An `ActionReceipt` records the governed decision for a single action request. It binds together artifact identity, action class, exact request digest, policy digest, autonomy state, decision, timestamp, and receipt digest.
-
-The request digest enables exact-payload approval. If the payload changes, the previous approval no longer applies.
 
 ## Boundaries
 
