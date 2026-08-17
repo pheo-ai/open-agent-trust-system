@@ -1,20 +1,68 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.openagenttrust.org/v1/autonomy-transition.v1.json",
-  "title": "Autonomy Transition",
+  "title": "Open Agent Trust Autonomy Transition",
   "type": "object",
-  "required": ["schema", "transition_id", "skill_ref", "action_class", "from_state", "to_state", "evidence", "authorization", "scope", "status"],
+  "required": ["schema", "transition_id", "skill_ref", "action_class", "from_state", "to_state", "evidence", "authorization", "scope", "status", "occurred_at", "integrity"],
   "properties": {
     "schema": {"const": "oat.transition/v1"},
-    "transition_id": {"type": "string"},
-    "skill_ref": {"type": "object", "required": ["skill_id", "version"]},
-    "action_class": {"type": "string"},
-    "from_state": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
-    "to_state": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
-    "evidence": {"type": "object"},
-    "authorization": {"type": "object", "required": ["authorized"]},
-    "scope": {"type": "object"},
-    "status": {"enum": ["active", "superseded", "revoked"]}
+    "transition_id": {"type": "string", "minLength": 8},
+    "skill_ref": {
+      "type": "object",
+      "required": ["skill_id", "version"],
+      "properties": {
+        "skill_id": {"type": "string", "minLength": 3},
+        "version": {"type": "string", "minLength": 1},
+        "manifest_digest": {"$ref": "#/$defs/sha256Digest"}
+      },
+      "additionalProperties": false
+    },
+    "action_class": {"$ref": "#/$defs/actionClass"},
+    "from_state": {"$ref": "#/$defs/autonomyState"},
+    "to_state": {"$ref": "#/$defs/autonomyState"},
+    "evidence": {
+      "type": "object",
+      "required": ["trigger"],
+      "properties": {
+        "trigger": {"type": "string", "minLength": 1},
+        "receipt_digest": {"$ref": "#/$defs/sha256Digest"},
+        "metric": {"type": "string"},
+        "threshold": {"type": ["string", "number"]}
+      },
+      "additionalProperties": true
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["authorized"],
+      "properties": {
+        "authorized": {"type": "boolean"},
+        "authorizer_id": {"type": "string"},
+        "reason": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "scope": {
+      "type": "object",
+      "required": ["effect"],
+      "properties": {
+        "effect": {"enum": ["single_action_class", "skill", "publisher", "environment"]},
+        "environment": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "status": {"enum": ["active", "superseded", "revoked"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "integrity": {
+      "type": "object",
+      "required": ["transition_digest"],
+      "properties": {"transition_digest": {"$ref": "#/$defs/sha256Digest"}},
+      "additionalProperties": false
+    }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "actionClass": {"type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_:-]*$"},
+    "autonomyState": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
+    "sha256Digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"}
+  }
 }

@@ -1,19 +1,91 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.openagenttrust.org/v1/action-receipt.v1.json",
-  "title": "Governed Action Receipt",
+  "title": "Open Agent Trust Action Receipt",
   "type": "object",
   "required": ["schema", "receipt_id", "skill_ref", "action", "policy_ref", "autonomy", "decision", "timestamps", "integrity"],
   "properties": {
     "schema": {"const": "oat.action-receipt/v1"},
-    "receipt_id": {"type": "string"},
-    "skill_ref": {"type": "object", "required": ["skill_id", "version", "manifest_digest"]},
-    "action": {"type": "object", "required": ["class", "request_digest"]},
-    "policy_ref": {"type": "object", "required": ["policy_id", "version", "digest"]},
-    "autonomy": {"type": "object", "required": ["state"]},
-    "decision": {"type": "object", "required": ["status", "method", "reason"]},
-    "timestamps": {"type": "object", "required": ["decided_at"]},
-    "integrity": {"type": "object", "required": ["receipt_digest"]}
+    "receipt_id": {"type": "string", "minLength": 8},
+    "skill_ref": {
+      "type": "object",
+      "required": ["skill_id", "version", "manifest_digest"],
+      "properties": {
+        "skill_id": {"type": "string", "minLength": 3},
+        "version": {"type": "string", "minLength": 1},
+        "manifest_digest": {"$ref": "#/$defs/sha256Digest"}
+      },
+      "additionalProperties": false
+    },
+    "action": {
+      "type": "object",
+      "required": ["class", "request_digest"],
+      "properties": {
+        "class": {"$ref": "#/$defs/actionClass"},
+        "request_digest": {"$ref": "#/$defs/sha256Digest"},
+        "payload_ref": {"type": "string"},
+        "tool_ref": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "policy_ref": {
+      "type": "object",
+      "required": ["policy_id", "version", "digest"],
+      "properties": {
+        "policy_id": {"type": "string", "minLength": 3},
+        "version": {"type": "string", "minLength": 1},
+        "digest": {"$ref": "#/$defs/sha256Digest"}
+      },
+      "additionalProperties": false
+    },
+    "autonomy": {
+      "type": "object",
+      "required": ["state"],
+      "properties": {"state": {"$ref": "#/$defs/autonomyState"}},
+      "additionalProperties": false
+    },
+    "decision": {
+      "type": "object",
+      "required": ["status", "method", "reason"],
+      "properties": {
+        "status": {"enum": ["allowed", "pending_review", "approved", "blocked", "rejected"]},
+        "method": {"enum": ["policy", "human", "system"]},
+        "approver_id": {"type": ["string", "null"]},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "timestamps": {
+      "type": "object",
+      "required": ["decided_at"],
+      "properties": {"decided_at": {"type": "string", "format": "date-time"}},
+      "additionalProperties": false
+    },
+    "integrity": {
+      "type": "object",
+      "required": ["receipt_digest"],
+      "properties": {
+        "previous_receipt_digest": {"type": ["string", "null"], "pattern": "^(sha256:[a-f0-9]{64})?$"},
+        "receipt_digest": {"$ref": "#/$defs/sha256Digest"}
+      },
+      "additionalProperties": false
+    },
+    "signature": {"$ref": "#/$defs/signature"}
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "actionClass": {"type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_:-]*$"},
+    "autonomyState": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
+    "sha256Digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"enum": ["HMAC-SHA256", "DSSE", "Sigstore"]},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 16}
+      },
+      "additionalProperties": false
+    }
+  }
 }

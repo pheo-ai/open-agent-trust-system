@@ -13,6 +13,7 @@ validate:
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m validator.cli policy examples/invoice-exception/policy.json
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m validator.cli policy examples/literature-screening/policy.json
 	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m validator.cli policy examples/marketing-review/policy.json
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m validator.cli action_receipt examples/coding-agent/receipt.signed.json
 
 clean:
 	find . -type d -name __pycache__ -prune -exec rm -rf {} +

@@ -1,17 +1,60 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.openagenttrust.org/v1/autonomy-policy.v1.json",
-  "title": "Autonomy Policy",
+  "title": "Open Agent Trust Autonomy Policy",
   "type": "object",
   "required": ["schema", "policy_id", "version", "skill_ref", "action_classes"],
   "properties": {
     "schema": {"const": "oat.policy/v1"},
-    "policy_id": {"type": "string"},
-    "version": {"type": "string"},
-    "skill_ref": {"type": "object", "required": ["skill_id", "version"]},
-    "action_classes": {"type": "object", "minProperties": 1},
-    "promotion": {"type": "object"},
-    "rollback": {"type": "object"}
+    "policy_id": {"type": "string", "minLength": 3},
+    "version": {"type": "string", "minLength": 1},
+    "skill_ref": {
+      "type": "object",
+      "required": ["skill_id", "version"],
+      "properties": {
+        "skill_id": {"type": "string", "minLength": 3},
+        "version": {"type": "string", "minLength": 1},
+        "manifest_digest": {"$ref": "#/$defs/sha256Digest"}
+      },
+      "additionalProperties": false
+    },
+    "action_classes": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {"$ref": "#/$defs/actionClass"},
+      "additionalProperties": {"$ref": "#/$defs/actionRule"}
+    },
+    "promotion": {
+      "type": "object",
+      "properties": {
+        "minimum_reviewed_cases": {"type": "integer", "minimum": 0},
+        "critical_error_limit": {"type": "integer", "minimum": 0},
+        "human_authorization_required": {"type": "boolean"},
+        "evidence_window": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": {"enum": ["demote_to_supervised", "revoke", "block"]}
+    }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "actionClass": {"type": "string", "minLength": 1, "pattern": "^[a-zA-Z][a-zA-Z0-9_:-]*$"},
+    "sha256Digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "actionRule": {
+      "type": "object",
+      "required": ["autonomy_state", "human_approval"],
+      "properties": {
+        "autonomy_state": {"enum": ["observe", "supervised", "act_with_approval", "bounded_autonomous", "revoked"]},
+        "human_approval": {"enum": ["required", "not_required"]},
+        "allowed_tools": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
+        "max_payload_sensitivity": {"enum": ["public", "internal", "confidential", "restricted"]},
+        "requires_exact_payload_digest": {"type": "boolean"},
+        "conditions": {"type": "object", "additionalProperties": {"type": ["string", "number", "boolean", "array", "object"]}}
+      },
+      "additionalProperties": false
+    }
+  }
 }

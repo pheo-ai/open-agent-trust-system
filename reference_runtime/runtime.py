@@ -6,7 +6,14 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Dict, Mapping, Optional
 
-from validator.core import canonical_json, digest, validate_policy
+from validator.core import (
+    digest,
+    request_digest,
+    receipt_digest,
+    transition_digest,
+    validate_policy,
+    validate_skill,
+)
 
 
 def _now() -> str:
@@ -29,6 +36,7 @@ class GovernanceRuntime:
     """
 
     def __init__(self, skill: Mapping[str, Any], policy: Mapping[str, Any]) -> None:
+        validate_skill(skill)
         validate_policy(policy)
         self.skill = dict(skill)
         self.policy = dict(policy)
@@ -37,6 +45,8 @@ class GovernanceRuntime:
             for action_class, definition in policy["action_classes"].items()
         }
         self.previous_receipt_digest: Optional[str] = None
+        self._receipt_sequence = 0
+        self._transition_sequence = 0
 
     def check_action(
         self,
@@ -73,21 +83,32 @@ class GovernanceRuntime:
         if action_class not in self.state:
             raise KeyError(action_class)
         before = self.state[action_class]
-        self.state[action_class] = "supervised"
-        return {
+        to_state = "observe" if before == "supervised" else "supervised"
+        self.state[action_class] = to_state
+        self._transition_sequence += 1
+        transition = {
             "schema": "oat.transition/v1",
-            "transition_id": f"transition-{action_class}-{len(trigger)}",
+            "transition_id": f"transition-{self._transition_sequence}-{action_class}",
             "skill_ref": {
                 "skill_id": self.skill["skill_id"],
                 "version": self.skill["version"],
+                "manifest_digest": digest(self.skill),
             },
             "action_class": action_class,
             "from_state": before,
-            "to_state": "supervised",
-            "reason": {"trigger": trigger},
-            "authorized": False,
+            "to_state": to_state,
+            "evidence": {"trigger": trigger},
+            "authorization": {
+                "authorized": False,
+                "reason": "fail-safe demotion does not require promotion authority",
+            },
+            "scope": {"effect": "single_action_class"},
+            "status": "active",
             "occurred_at": _now(),
+            "integrity": {},
         }
+        transition["integrity"]["transition_digest"] = transition_digest(transition)
+        return transition
 
     def _decision(
         self,
@@ -98,9 +119,11 @@ class GovernanceRuntime:
         *,
         approved_by: Optional[str] = None,
     ) -> Decision:
+        self._receipt_sequence += 1
+        req_digest = request_digest(request)
         receipt = {
             "schema": "oat.action-receipt/v1",
-            "receipt_id": f"receipt-{action_class}-{status}",
+            "receipt_id": f"receipt-{self._receipt_sequence}-{action_class}-{req_digest[-12:]}",
             "skill_ref": {
                 "skill_id": self.skill["skill_id"],
                 "version": self.skill["version"],
@@ -108,9 +131,7 @@ class GovernanceRuntime:
             },
             "action": {
                 "class": action_class,
-                "request_digest": "sha256:" + __import__("hashlib").sha256(
-                    canonical_json(request)
-                ).hexdigest(),
+                "request_digest": req_digest,
             },
             "policy_ref": {
                 "policy_id": self.policy["policy_id"],
@@ -129,6 +150,6 @@ class GovernanceRuntime:
                 "previous_receipt_digest": self.previous_receipt_digest,
             },
         }
-        receipt["integrity"]["receipt_digest"] = digest(receipt)
+        receipt["integrity"]["receipt_digest"] = receipt_digest(receipt)
         self.previous_receipt_digest = receipt["integrity"]["receipt_digest"]
         return Decision(status, action_class, reason, receipt)

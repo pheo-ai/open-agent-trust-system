@@ -1,0 +1,39 @@
+{
+  "action": {
+    "class": "apply_patch",
+    "request_digest": "sha256:7e741f4042d993415f5253ce403c26f376fb44546e170cde89aa22f9a43a1828"
+  },
+  "autonomy": {
+    "state": "act_with_approval"
+  },
+  "decision": {
+    "approver_id": "developer@example.org",
+    "method": "human",
+    "reason": "Reviewed exact patch digest and approved release.",
+    "status": "approved"
+  },
+  "integrity": {
+    "previous_receipt_digest": null,
+    "receipt_digest": "sha256:22ee81d6e9858ede355de921fac285183127e6d099f31d3decbed398d6701648"
+  },
+  "policy_ref": {
+    "digest": "sha256:098ebeb69fbefe4d185cf496dca2a06f351220fde1e1fbcceb4869f6da6b681a",
+    "policy_id": "com.example.coding-agent-policy",
+    "version": "1.0.0"
+  },
+  "receipt_id": "receipt-1-apply_patch-22f9a43a1828",
+  "schema": "oat.action-receipt/v1",
+  "signature": {
+    "algorithm": "HMAC-SHA256",
+    "key_id": "demo-review-key",
+    "value": "18446b4eb37f8af710805f7f9f0504a3b7de6dbea79f3ec11996736fb51d4c07"
+  },
+  "skill_ref": {
+    "manifest_digest": "sha256:d5959a871a151ff70f88a3b3c5855b0c7c598c293aeef9273e9908c77615a234",
+    "skill_id": "com.example.coding-agent",
+    "version": "0.1.0"
+  },
+  "timestamps": {
+    "decided_at": "2026-08-17T02:28:45.712498Z"
+  }
+}

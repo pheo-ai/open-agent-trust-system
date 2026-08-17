@@ -1,22 +1,52 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.openagenttrust.org/v1/lifecycle-attestation.v1.json",
-  "title": "Skill Lifecycle Attestation",
+  "title": "Open Agent Trust Lifecycle Attestation",
   "type": "object",
   "required": ["schema", "attestation_id", "subject", "event", "issuer", "issued_at", "signature"],
   "properties": {
     "schema": {"const": "oat.attestation/v1"},
-    "attestation_id": {"type": "string"},
-    "subject": {"type": "object", "required": ["skill_id", "version", "artifact_digest"]},
+    "attestation_id": {"type": "string", "minLength": 8},
+    "subject": {
+      "type": "object",
+      "required": ["skill_id", "version", "artifact_digest"],
+      "properties": {
+        "skill_id": {"type": "string", "minLength": 3},
+        "version": {"type": "string", "minLength": 1},
+        "artifact_digest": {"$ref": "#/$defs/sha256Digest"}
+      },
+      "additionalProperties": false
+    },
     "event": {"enum": ["published", "verified", "approved_for_use", "promoted", "demoted", "revoked", "yanked", "expired"]},
-    "issuer": {"type": "object", "required": ["id"]},
+    "issuer": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "identity_ref": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
     "provenance": {"type": "object"},
-    "checks": {"type": "array"},
+    "checks": {"type": "array", "items": {"type": "object"}},
     "autonomy_policy_ref": {"type": "string"},
     "status": {"enum": ["active", "revoked", "yanked", "expired"]},
     "issued_at": {"type": "string", "format": "date-time"},
     "expires_at": {"type": "string", "format": "date-time"},
-    "signature": {"type": "object", "required": ["algorithm", "key_id", "value"]}
+    "signature": {"$ref": "#/$defs/signature"}
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "$defs": {
+    "sha256Digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "properties": {
+        "algorithm": {"enum": ["HMAC-SHA256", "DSSE", "Sigstore"]},
+        "key_id": {"type": "string", "minLength": 1},
+        "value": {"type": "string", "minLength": 16}
+      },
+      "additionalProperties": false
+    }
+  }
 }

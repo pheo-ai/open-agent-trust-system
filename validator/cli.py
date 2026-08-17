@@ -1,4 +1,4 @@
-"""Command-line validator for local profile documents."""
+"""Command-line validator for Open Agent Trust profile documents."""
 
 from __future__ import annotations
 
@@ -6,25 +6,34 @@ import argparse
 import json
 from pathlib import Path
 
-from .core import ValidationError, validate_document, validate_policy
+from .core import (
+    validate_action_receipt,
+    validate_document,
+    validate_policy,
+    validate_skill,
+    validate_transition,
+)
 
 
-def main() -> int:
+def main() -> None:
     parser = argparse.ArgumentParser(description="Validate Open Agent Trust JSON")
-    parser.add_argument("kind", choices=("skill", "policy", "attestation", "action_receipt", "transition"))
+    parser.add_argument("kind", choices=["skill", "policy", "attestation", "action_receipt", "transition"])
     parser.add_argument("path", type=Path)
     args = parser.parse_args()
+
     document = json.loads(args.path.read_text())
-    try:
-        if args.kind == "policy":
-            validate_policy(document)
-        else:
-            validate_document(document, args.kind)
-    except ValidationError as error:
-        parser.error(str(error))
+    if args.kind == "skill":
+        validate_skill(document)
+    elif args.kind == "policy":
+        validate_policy(document)
+    elif args.kind == "action_receipt":
+        validate_action_receipt(document)
+    elif args.kind == "transition":
+        validate_transition(document)
+    else:
+        validate_document(document, args.kind)
     print(f"valid {args.kind}: {args.path}")
-    return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
