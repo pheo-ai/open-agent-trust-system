@@ -1,0 +1,694 @@
+\documentclass[10pt,conference]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+% long \texttt{} identifiers cannot hyphenate; let TeX stretch instead
+\emergencystretch=3em
+\hypersetup{colorlinks=true,linkcolor=blue!50!black,citecolor=blue!50!black,urlcolor=blue!50!black}
+
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,frame=single,
+        backgroundcolor=\color{black!3},columns=fullflexible}
+
+\title{\textbf{Scan the Skill, Govern the Action:\\
+Composing Registry Verdicts with Runtime Consequence Control}}
+\author{
+  Rohit Taneja\\ Pheo Inc\\ \texttt{rohit@pheo.ai}
+  \and
+  Travis Weber\\ Pheo Inc\\ \texttt{travis@pheo.ai}
+}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Agent skill registries screen what they publish. OpenClaw's own security team
+showed that this screening is four disagreeing signals rather than one: their
+scanners overlap on at most 10.4\% of combined positives, and 81.9\% of flagged
+skills are caught by a single scanner alone~\cite{clawhubsignals}. We take that
+finding as given and argue the open question is not \emph{which scanner is right}
+but \emph{which question is being asked}. Every scanner in that pipeline answers
+``is this skill malicious?'' Nobody answers ``is this action permitted on this
+machine, by this operator, right now?'' That second question has a different
+answer on the same artifact depending on whose infrastructure it runs on.
+
+We report three measurements over 66,192 public ClawHub skill versions and a live
+agent. First, 822 skills across 187 unrelated publishers that all four scanners
+call clean nonetheless instruct an action many operators forbid outright. 677 of
+them fetch code over the network and execute it in the same command. The scanners
+are not wrong; the code is not malware. Permission and maliciousness are different
+predicates. Second, of 93 commands a live agent actually executed while following
+real skill documentation, \textbf{3 appear verbatim in that documentation}. Static
+analysis reasons about a document that is empirically not the artifact that runs.
+Third, we set out what each layer structurally cannot see, including our own: a
+gate that reads actions is blind to harm that never becomes one. These blind spots
+do not coincide, which is why the layers compose rather than compete.
+
+We contribute the missing control point: a deterministic consequence resolver
+(1.03\,$\mu$s mean, 3.27\,$\mu$s worst case, no model in the decision path) feeding
+a per-(resource, class) trust ledger whose promotion thresholds are derived from an
+operator's own stated risk tolerance rather than asserted. The common flat rule of
+``ten clean approvals'' licenses a 25.9\% failure rate at 95\% confidence, up to
+60$\times$ more permissive than the operator's own policy would allow. We argue
+agent-skill safety is a composition of two different questions, not a contest
+between two detectors, and we report where our own layer fails as precisely as
+where it helps.
+\end{abstract}
+
+\section{Introduction}
+
+No bank checks a customer once. Know-your-customer runs at account opening: identity
+verified, source of funds established, sanctions lists cleared. It is a real control
+and a necessary one. Then the account opens, and a second control takes over that
+nobody would consider optional: every transfer afterwards is screened as it
+happens, against limits, against patterns, against what this account has done
+before. No regulator would accept ``we verified them at onboarding'' as a complete
+answer, because the customer who was verified on day one is not a promise about the
+transfer attempted on day four hundred.
+
+Agent skills today have the first control and not the second. Registries screen a
+skill before it is published, thoroughly, with several independent instruments, and
+then an autonomous agent installs it and begins acting on a real machine with real
+credentials, and no control asks whether any particular action is one this
+organisation permits. This paper is about the second half of that pattern: what it
+costs to be missing, and what it takes to build.
+
+That a second control is required is, at this point, a settled question rather than
+an open one. Enterprises are deploying agents against production systems faster than
+publish-time review can characterise them, and a commercial tier of runtime agent
+governance has formed in response, with funded platforms recording tool invocations
+and intervening on live behaviour across estates of tens of thousands of agents. We
+take the necessity of the runtime tier as established and do not argue for it here.
+Our question is narrower and, we think, the one still unanswered: given that
+something must sit in front of every action, on what principled basis does it ever
+stop asking? A control that interrupts an operator on every consequential action
+converges on being switched off, and an operator who switches it off is less
+protected than one who never installed it.
+
+An agent skill is a directory containing a \texttt{SKILL.md}: natural-language
+metadata describing when a skill applies, and instructions an agent follows once it
+does. ClawHub is the public registry through which most OpenClaw skills are
+distributed. Before a skill version is published, it passes a pre-catalog
+verification gate: independent scans from VirusTotal, in-house static analysis, and
+NVIDIA SkillSpector are handed as context to ClawScan, an LLM-as-judge (GPT-5.5)
+that weighs them alongside provenance, metadata, and moderation history and issues
+one verdict: Clean, Suspicious, or Malicious~\cite{openclawblog}.
+
+In May 2026 OpenClaw published a measurement of that pipeline which we treat as
+this paper's premise rather than a finding to reproduce~\cite{clawhubsignals}.
+Across 67,453 skill versions, their three underlying scanners agree with each other
+almost never: any pair overlaps on at most 10.4\% of combined positives, only 0.69\%
+of flagged skills are caught by all three, and 81.9\% of positives come from one
+scanner acting alone. Their diagnosis is precise, and we adopt it: \emph{``we do not
+believe these findings point toward an issue with any of the individual scanners.
+Rather, each scanner has a different risk surface.''}
+
+\subsection{The question nobody is asking}
+
+That diagnosis is usually read as a detection problem: four instruments, four
+calibrations, unify them and the noise resolves. We think it is something else.
+VirusTotal answers ``is this a known-bad binary.'' Static analysis answers ``does
+this match a dangerous pattern.'' SkillSpector answers ``is this capability profile
+over-broad.'' ClawScan answers ``on balance, is this malicious.'' Four different
+questions, all of them about a property of the \emph{artifact}.
+
+Consider a skill published by \texttt{oomol}, a real company, whose documentation
+instructs:
+\begin{lstlisting}
+curl -fsSL https://cli.oomol.com/install.sh | bash
+\end{lstlisting}
+Every scanner in the pipeline calls this clean, and every scanner is correct: it is
+an ordinary vendor installer, not malware. Yet a large class of operators, anyone
+under a control framework that forbids executing unreviewed remote code (which
+includes most regulated infrastructure), will not permit an autonomous agent to run
+it unattended, from any publisher, malicious or not. The prohibition is a property
+of the \emph{action}, evaluated against \emph{this operator's policy}, not a
+property of the artifact.
+
+No scanner in the pipeline can express that. Their entire output vocabulary is
+clean / suspicious / malicious. There is no slot for ``acceptable at a two-person
+startup, prohibited at a bank,'' because that judgment depends on facts, whose
+machine, whose data, whose compliance regime, what this skill has done here
+before, that do not exist at publish time and are not properties of the file.
+
+\subsection{Contributions}
+
+\begin{enumerate}
+\item \textbf{Permission $\neq$ maliciousness, measured.} 822 skills across 187
+  unrelated publishers that all four scanners call clean while instructing an
+  action a large class of operators forbids outright (\S\ref{sec:permission}).
+\item \textbf{The scanned artifact is not the executed artifact.} Of 93 commands a
+  live agent issued while following real skill documentation, 3 (3.2\%) appear
+  verbatim in that documentation (\S\ref{sec:divergence}). This is, to our
+  knowledge, the first direct measurement of the gap between what agent-skill
+  static analysis inspects and what actually executes.
+\item \textbf{A live demonstration.} A real agent, real skills the registry cleared
+  with quoted high-confidence rationales, a real gate, blocked before execution
+  (\S\ref{sec:runtime}).
+\item \textbf{A layer-by-layer account of what each control can and cannot see},
+  including our own blind spot, harm that never resolves to an action, stated as
+  plainly as our contributions (\S\ref{sec:layers}).
+\item \textbf{Derived, not asserted, autonomy thresholds}, parameterised by the
+  operator's own risk tolerance, with a measured resolver fast enough to sit on
+  every tool call (\S\ref{sec:resolver}, \S\ref{sec:graduation}).
+\end{enumerate}
+
+\section{OATS: Resolving Actions, Not Judging Artifacts}
+\label{sec:oats}
+
+OATS (Open Agent Trust System) occupies the control point none of the four scanners
+sit on: the moment an agent has decided what to do and has not yet done it. It does
+not read the skill's prose, and it does not render an opinion about the skill. It
+answers one question about one concrete act: \emph{is an agent with this track
+record permitted to perform this class of action on this resource, unattended,
+under this operator's policy?}
+
+\subsection{The deterministic resolver}
+\label{sec:resolver}
+
+Let $\Sigma^*$ be the space of command strings an agent may emit and
+$\mathcal{C}$ a finite, closed set of consequence classes. The resolver is a total
+function
+\[
+  \rho : \Sigma^* \rightarrow \mathcal{C}
+\]
+with three properties we hold it to. It is \emph{total}: every command receives a
+class, so no input path fails open. An early defect in which unmatched shell
+commands fell through as unclassified is reported in \S\ref{sec:defects}. It is
+\emph{deterministic}: $\rho$ is a pure function of the command string, so
+$\rho(c)$ is identical across runs, hosts, and releases, and is reproducible by an
+auditor without re-executing a model. And it is \emph{monotone in severity}: where
+a command matches several classes, resolution takes the maximum under a fixed
+severity order $\preceq$ rather than a union or a mean,
+\[
+  \rho(c) \;=\; \max_{\preceq}\;\{\, k \in \mathcal{C} \;:\; \pi_k(c) \,\},
+\]
+where $\pi_k$ is the predicate for class $k$. There is no score to tune and no
+threshold to drift.
+
+Each $\pi_k$ is argument-position-aware rather than keyword-presence-based: a token
+must occupy the position a dangerous argument would occupy relative to a specific
+command verb. This distinction is not academic. Three successive false-positive
+regressions in our remote-execution predicate (\S\ref{sec:defects}) all had the same
+root cause: a gap in the pattern permissive enough to span markdown prose, section
+breaks, or an unrelated command chain, so that a URL mentioned in documentation
+hundreds of characters away from an \texttt{npm install} satisfied it. The shipped
+predicate bounds every gap explicitly and constrains it to characters admissible in
+a shell argument.
+
+Crucially, $\rho$ takes no input from the skill's documentation. A skill may
+describe its installation step as reassuringly as it likes; the description is not
+an argument to the function that decides whether the step is remote code execution.
+This matters beyond hygiene: Saha et al.\ report governance-evasion rates of
+36.5--100\% against static and LLM-based scanners achieved purely through how a
+skill's own text is written~\cite{skillmd2026}. An LLM judge reading the artifact it
+is judging shares a channel with its adversary. $\rho$ does not.
+
+\subsection{Measured cost}
+
+A gate on every tool call must justify its place on the hot path with a number.
+Over a spread of benign, ambiguous, and risky command shapes
+(Table~\ref{tab:perf}), resolution costs \textbf{1.03\,$\mu$s} on one core of an
+Apple M-series laptop, with a worst case of 3.27\,$\mu$s on the most complex
+alternation (\texttt{curl \ldots | bash}).
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lr}
+\toprule
+Resolver, mean per classification & 1.03\,$\mu$s \\
+Resolver, slowest shape & 3.27\,$\mu$s \\
+Resolver throughput, single core & 971{,}000/s \\
+\midrule
+End-to-end hook, median & 67.6\,ms \\
+End-to-end hook, p95 & 81.1\,ms \\
+\bottomrule
+\end{tabular}
+\caption{Governance cost. The decision itself is microseconds; end-to-end latency
+is dominated by process spawn and local IPC in the current CLI hook, not by
+classification, an engineering cost rather than an architectural one.}
+\label{tab:perf}
+\end{table}
+
+The distinction matters for what is architecturally possible. A judge that consults
+a language model, local or hosted, pays a model's latency on every decision, which
+bounds where it can be placed. A resolver at $10^{-6}$ seconds can sit
+synchronously in front of every action without the operator perceiving it. We make
+no claim that $\rho$ is smarter than an LLM judge; it is deliberately narrower
+(\S\ref{sec:layers}). We claim only that it is cheap enough, and stable enough, to
+occupy a position an LLM judge cannot.
+
+\subsection{The trust ledger}
+
+$\rho$'s output feeds a finite-state ledger keyed on the pair (resource, class),
+not on the skill. Trust is therefore not a scalar attached to a package: a skill may
+be fully trusted to write documentation in one repository and permanently untrusted
+to read a credential file, simultaneously. Each lane moves
+\[
+\textit{unclassified} \rightarrow \textit{held} \rightarrow
+\begin{cases}
+\textit{approved} & \text{(clean-run counter } n \mathbin{+}\mathbin{=} 1)\\
+\textit{rejected} & \text{(} n \leftarrow 0 \text{)}
+\end{cases}
+\]
+with \textit{graduated} reachable only when $n \geq N_k$, the per-class threshold
+derived in \S\ref{sec:graduation}, and only for classes whose severity permits
+graduation at all. Every transition is a counting rule over recorded human
+decisions, replayable from the ledger alone.
+
+\section{Data and Method}
+\label{sec:method}
+
+We use \texttt{OpenClaw/clawhub-security-signals}, OpenClaw's own MIT-licensed
+dataset~\cite{clawhubdataset}, in full: all four splits, 66,192 deduplicated skill
+versions, each carrying four scanner verdicts and redacted \texttt{SKILL.md}
+content. Every skill is classified through the unmodified shipping client
+(\texttt{oatsctl hook pre-tool-use}), the same binary an agent's tool-use hook
+invokes, rather than a reimplementation, for a reason documented in
+\S\ref{sec:defects}.
+
+Throughout, we deduplicate findings by publisher. A single publisher repeating one
+installer line across dozens of their own skills is one finding, not dozens; the
+raw counts are 2--3$\times$ larger and we do not report them as headline numbers.
+
+We also exclude one class, \texttt{secret\_change}, from all risk counts. It fires
+correctly: a skill documenting a write to \texttt{.env} or
+\texttt{\textasciitilde{}/.config/\ldots/credentials.json} genuinely is a secret
+operation. But nearly every skill requiring an API key does this, making it a
+correct classification and a weak risk signal. Including it would have inflated our
+central finding by roughly $2\times$.
+
+\section{Finding: Clean Skills Instructing Forbidden Actions}
+\label{sec:permission}
+
+Of 66,192 skills, 29,257 are called clean by all four scanners. Within that
+population, 789 skills, across 174 distinct publishers, instruct an action in a class
+that many operators forbid unattended. Widening to skills no scanner flagged as even
+\emph{suspicious} gives 822 skills across 187 publishers (Table~\ref{tab:permission}).
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lr}
+\toprule
+Action class instructed & Skills \\
+\midrule
+Fetch and execute remote code & 677 \\
+Credential access & 97 \\
+Destructive command & 27 \\
+IAM change & 21 \\
+Deploy & 3 \\
+CI/automation config change & 1 \\
+\midrule
+Total (187 distinct publishers) & 822 \\
+\bottomrule
+\end{tabular}
+\caption{Skills no scanner flagged, instructing actions a large class of operators
+prohibit for autonomous agents. These are not detections of malice; they are
+detections of \emph{policy-relevant capability}.}
+\label{tab:permission}
+\end{table}
+
+We stress the interpretation, because the opposite reading is available and wrong.
+These 822 are not 822 missed attacks, and the scanners did not err. Publishers here
+include established vendors shipping ordinary installers. The finding is that
+\emph{maliciousness and permission are different predicates over the same artifact},
+and a pipeline that only computes the first leaves the second unanswered for every
+skill it clears.
+
+\section{Finding: The Scanned Artifact Is Not the Executed Artifact}
+\label{sec:divergence}
+
+Static analysis of \texttt{SKILL.md} is sound only if what the agent executes is
+what the document contains. We tested that assumption directly. For 40 skills
+sampled across distinct publishers, we classified every fenced code block in the
+document (the static view) and separately captured every command a live agent
+(Claude Sonnet~5) issued while following that same document, classifying both
+through the same resolver.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Executed commands ($n=93$, 40 skills) & Count & Share \\
+\midrule
+Verbatim from \texttt{SKILL.md} & 3 & 3.2\% \\
+Recomposed (class present in document) & 56 & 60.2\% \\
+Class absent from every documented block & 34 & 36.6\% \\
+\bottomrule
+\end{tabular}
+\caption{What an agent actually runs, against what the document says. 96.8\% of
+executed commands do not appear in the artifact the scanners inspected.}
+\end{table}
+
+Agents do not transcribe documentation; they recompose it. They chain a check onto
+an install the document never chained (\texttt{go version \&\& go install \ldots}),
+add flags, redirect output, split one documented step into three. In 42\% of skills
+the agent performed an action whose consequence class appeared nowhere in the
+document's own code blocks.
+
+\paragraph{An honest bound on this result.} All 34 unanticipated commands resolved
+to the generic \texttt{shell\_exec} class. We observed \emph{no} case in this
+sample where recomposition manufactured a \emph{higher-severity} class than the
+document contained. The claim this experiment supports is therefore precise and
+narrower than it may first appear: the executed string is essentially never the
+documented string, so document-based analysis reasons about a proxy. But in this
+sample, the proxy did not fail in a dangerous direction. We report the absence of
+that stronger result deliberately.
+
+\section{Experiment: Live Runtime Verification}
+\label{sec:runtime}
+
+We ran a live agent against real skill documentation through the unmodified gate,
+executing only commands the gate permitted. Across 54 unanimously-clean skills that
+instruct a risky action, the agent reached for such an action in 4 (7\%); all 4 were
+held or blocked before execution (100\%). We report both rates because the second
+is the product claim and the first is what makes it matter.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{3.4cm}p{5.4cm}p{5.4cm}}
+\toprule
+Skill & ClawScan's own verdict (verbatim) & What the gate did \\
+\midrule
+\texttt{minirr890112-byte/\allowbreak llm-deploy-helper} &
+clean, high confidence: ``coherent and user-directed'' &
+\texttt{pip install git+\ldots}: denied, remote code execution \\
+\texttt{rogeecn/memos-cli} &
+clean, high confidence: ``a coherent Memos CLI helper'' &
+\texttt{go install \ldots@latest}: denied \\
+\texttt{snuri00/osint-mcp} &
+clean, medium confidence: ``does not show malicious behavior'' &
+\texttt{pip install git+\ldots}: denied \\
+\texttt{charleshahn/\allowbreak duivytools-skills} &
+clean, high confidence: ``no hidden or abusive behavior found'' &
+ordinary install held for review; retry via a third-party mirror denied \\
+\bottomrule
+\end{tabular}
+\caption{Four live blocks, each on a skill the registry's own judge had cleared,
+with its rationale quoted.}
+\label{tab:blocked}
+\end{table}
+
+The fourth case is the clearest illustration of resolution over interpretation. The
+agent's first install attempt was ordinary and was \emph{held for routine review},
+not blocked. Its second attempt routed the same install through a third-party
+mirror, and the same resolver classified that occurrence as remote code execution
+and denied it. One documented step, two executions, two different classes, because
+$\rho$ is a function of what actually happened, not of what the document said would
+happen.
+
+\section{What Each Layer Sees}
+\label{sec:layers}
+
+The four registry signals and OATS are often discussed as if they were rival
+detectors with different accuracy. They are not comparable that way, because they
+do not take the same input, do not run at the same time, and do not emit the same
+kind of statement. Table~\ref{tab:layers} sets them side by side on those axes
+rather than on a shared score.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{p{2.1cm}p{3.6cm}p{2.5cm}p{2.0cm}p{3.0cm}}
+\toprule
+Layer & Question it answers & Input & When & What it cannot see \\
+\midrule
+VirusTotal &
+Is this a known-bad binary? &
+Bundled files &
+Publish &
+Novel code; anything not in a signature database \\[2pt]
+Static analysis &
+Does this text match a dangerous pattern? &
+Document text &
+Publish &
+Intent; whether the pattern is ever reached \\[2pt]
+SkillSpector &
+Is this skill's declared capability profile over-broad? &
+Document text, AI-assisted &
+Publish &
+Which capabilities are actually exercised, and on what \\[2pt]
+ClawScan &
+On balance, is this skill malicious? &
+The three above, plus provenance and moderation history &
+Publish &
+Anything absent from the artifact at publish time \\[2pt]
+\textbf{OATS} &
+Is \emph{this action} permitted here, now, given this record? &
+The resolved command string &
+Every action &
+Harm that never becomes an action \\
+\bottomrule
+\end{tabular}
+\caption{Five layers, five different questions. The right-hand column is the point:
+each blind spot is a property of where the layer sits, not of how well it is built.}
+\label{tab:layers}
+\end{table}
+
+Read the last column as the design, not as a scorecard. VirusTotal is blind to novel
+code because reputation requires history. SkillSpector is blind to which of a
+skill's capabilities are actually used, because that is not a fact about the
+document. And OATS is blind to harm that never resolves to an action, because it
+only ever sees actions.
+
+That last blind spot is real and we state it plainly with examples rather than
+leave it implied. \texttt{neuralshift1/gmail-last5} ``hard-codes a specific Gmail
+account and lacks a clear user confirmation step before reading sensitive email
+data.'' The harm is a hardcoded recipient and a missing consent step, with no
+executable block anywhere in the skill. \texttt{arubiku/mia-twitter-stealth} is
+``designed to automate Twitter/X account actions while hiding from bot detection'':
+the skill persuades the agent toward a pattern of behaviour composed entirely of
+individually unremarkable tool calls. \texttt{douglascorrea/obsidian-remote} ``gives
+an agent very powerful access to private notes and app internals without enough
+safety boundaries,'' a scope-versus-purpose mismatch in which no single action is
+disproportionate. All three are quoted from ClawScan's own summaries. All three are
+precisely what SkillSpector's Excessive Agency analysis exists to catch, and none of
+them is visible to a function whose only input is a command string. A runtime action
+gate is not a superset of a semantic scanner and must not be deployed as one.
+
+\subsection{Why the blast radius is wider together}
+
+Because the blind spots do not coincide, the layers compose rather than compete. A
+skill can be malicious in the artifact and never act (caught upstream, invisible to
+us). It can be entirely benign in the artifact and still drive an action an operator
+forbids (invisible upstream, caught by us; \S\ref{sec:permission} counts 822 such
+skills across 187 publishers). And an artifact that never changes can produce
+different actions on different runs, which is the case
+\S\ref{sec:divergence} measures at 96.8\% and \S\ref{sec:runtime} exhibits
+concretely: the same documented install step resolved as ordinary on one attempt and
+as remote code execution on the retry.
+
+Empirically the two signals behave as near-independent: across 66,192 skills, the
+Jaccard overlap between OATS's flags and the union of all four registry scanners'
+positives is $0.022$. We report that as evidence of independence, not of superiority.
+Low overlap is what one expects from instruments reading different objects, and
+it is the reason the union covers a wider blast radius than either alone.
+
+This suggests a composition rule cheaper and stronger than new detection:
+\emph{a registry verdict is an input to the ledger, not a competitor to it.} Where
+an upstream evaluator has marked a skill non-clean, an operator's policy can pin
+every lane for that skill at held or never-graduates, regardless of what $\rho$
+concludes about any individual command. The scanner's artifact-level judgment and
+the gate's action-level enforcement compose without either approximating the other.
+We present this as a mechanism rather than a measured result: evaluating it against
+the population that the scanner verdict itself defines would be circular, and we
+decline to report a number we cannot earn.
+
+\paragraph{Two predicates we built and did not ship.} While examining what OATS
+misses, we implemented two candidate detectors, outbound data sent to a literal
+hardcoded domain and a credential embedded directly as a command argument, and
+held them to the specificity bar every shipped predicate must pass: measured
+false-positive rate against the 29,257-skill unanimously-clean population. They fire
+on 4.4\% and 1.5\% of clean skills respectively, because \texttt{curl}-POSTing data
+to a URL is simply how ordinary API integrations work. Either would manufacture,
+inside OATS, the alert fatigue OpenClaw names as unsolved in their own approval
+system~\cite{openclawroadmap}. Neither shipped. We record this because the
+discipline that rejects a detector is the same discipline that makes the ones we
+keep worth trusting.
+
+\paragraph{When there is no verdict to compose with.} Not every skill arrives
+through a registry. OpenClaw's own roadmap acknowledges skills coming from GitHub,
+a private registry, or a file someone sends~\cite{openclawroadmap}. For those, no
+upstream signal exists at any price, and the runtime layer is not a second net but
+the only one.
+
+\section{Graduated Autonomy as Operator Policy}
+\label{sec:graduation}
+
+A gate that never lets a track record reduce scrutiny recreates exactly the prompt
+fatigue OpenClaw reports in their own system: users enable unattended mode once
+prompts outpace reading, after which no prompt is read. But a promotion rule must
+be defensible, and ``ten clean approvals'' is a product decision, not a derived one.
+
+By the rule of three, zero failures across $N$ independent trials bounds the true
+failure rate $\epsilon$ at confidence $1-\delta$ via $(1-\epsilon)^N = \delta$,
+giving the threshold required for a class whose tolerable failure rate is
+$\epsilon_k$:
+\[
+  N_k \;=\; \left\lceil \frac{\ln \delta}{\ln (1-\epsilon_k)} \right\rceil .
+\]
+At $\delta = 0.05$, ten clean approvals bound the failure rate at only
+\textbf{25.9\%}, a one-in-four chance the eleventh action is wrong.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrr}
+\toprule
+Consequence class & $\epsilon_k$ & $N_k$ \\
+\midrule
+Docs, tests, reads & 10\% & 29 \\
+Shell execution & 5\% & 59 \\
+Business logic, dependency changes & 2\% & 149 \\
+Deploy, IAM, CI configuration & 0.5\% & 598 \\
+Remote exec, credentials, secrets, destructive & 0\% & never \\
+\bottomrule
+\end{tabular}
+\caption{Clean runs required to license unattended action at 95\% confidence. A
+flat threshold of 10 is 3--60$\times$ too permissive, and unsound at any $N$ for the
+bottom row.}
+\end{table}
+
+$\epsilon_k$ is the operator's parameter, and this is the paper's central product
+claim rather than an implementation detail. It is the point at which
+``what this organisation permits'' enters the system as a number instead of a
+vendor default: a two-person startup and a regulated bank do not owe each other the
+same tolerance on a deploy action, and the same derivation tells each precisely what
+their own stated tolerance costs in evidence. Classes in the bottom row admit no
+finite $N$, since no clean record makes an unrecoverable action recoverable, which is
+how the policy of \S\ref{sec:permission} is enforced mechanically rather than
+advisorily.
+
+\section{Limitations and Defects in Our Own Instrument}
+\label{sec:defects}
+
+\textbf{Silver-standard ground truth.} OpenClaw's dataset card describes
+\texttt{clawscan\_verdict} as the registry's automated verdict, not human-adjudicated
+truth, with a human-annotated subset still under development~\cite{clawhubdataset}.
+``Scanner-confirmed malicious'' is not ``verified malicious,'' and every statement
+we make about that population inherits the limitation.
+
+\textbf{Sample sizes.} 54 skills for \S\ref{sec:runtime} and 40 for
+\S\ref{sec:divergence} demonstrate mechanisms and produce non-trivial rates; they do
+not support tight confidence intervals.
+
+\textbf{We do not report a detection rate for OATS against malicious skills, by
+choice.} Such a number would score a runtime action gate on a publish-time
+malware-detection benchmark, which is not the question it answers
+(\S\ref{sec:layers}); a favourable score there would in fact indicate redundancy
+with the scanners rather than value beside them. We state the blind spot
+qualitatively and with named examples instead.
+
+\textbf{Precision.} A manual audit of the static instruction-detection method
+returned 73.6\% precision; roughly one in four flagged skills in
+\S\ref{sec:permission} is likely a false positive, and we have no human-adjudicated
+labels for that population.
+
+\textbf{Single registry, frozen snapshot.} One registry, one deliberately frozen
+snapshot chosen for reproducibility.
+
+\textbf{Six defects in our own instrument, found and fixed during this work.} A
+shell-classification bypass let unmatched Bash commands fail open. Three successive
+false-positive regressions in the remote-execution predicate, each a
+too-permissive gap, were caught only by measuring against the clean population. A
+performance defect fetched 152\,MB of room history per governance check, which
+would have made corpus-scale evaluation impractical and any busy production room
+unusable. An entropy heuristic classified relative file paths
+(\texttt{references/CLAUDE-local-template.md}, 4.21 bits) as leaked credentials.
+
+We report these because an instrument that only ever reports itself correct is not
+one we would trust either, and because two of them were found only by running the
+instrument at corpus scale, which is the argument for doing so.
+
+\section{Related Work}
+
+OpenClaw's scanner-disagreement study~\cite{clawhubsignals} is this paper's premise
+rather than a comparison point. Saha et al.\ demonstrate discovery- and
+selection-manipulation attacks against ClawHub's ranking and 36.5--100\% governance
+evasion against static scanners~\cite{skillmd2026}; their attacks target what a
+human or ranking algorithm sees before install, complementary to our focus on what
+an agent does after. Recent work on trajectory assurance argues individually
+permitted actions can jointly violate a state-conditioned invariant that no deployed
+mechanism enforces~\cite{trajectory2026}; our per-(resource, class) ledger is one
+concrete instantiation of the enforcement point that work argues is missing, though
+we enforce per-action rather than per-trajectory. Formal machinery for temporal
+constraints over agent action sequences~\cite{temporal2026} is a natural direction
+for extending $\rho$'s policy language beyond the per-action scope we implement.
+
+\paragraph{Runtime governance as an emerging tier.} The argument that agent safety
+requires a runtime control point is no longer only an academic position. A
+commercial category has formed around it: venture-funded platforms now discover
+agents across enterprise estates, record their tool invocations, and intervene on
+anomalous behaviour in production, with published deployments spanning tens of
+thousands of agents at a single customer. We regard this as independent
+confirmation of the premise this paper argues from, and we do not claim the runtime
+tier as our own invention. It also sharpens what remains genuinely open. Across
+both the registry-side scanning described in \S\ref{sec:layers} and this emerging
+runtime tier, controls are binary in the same way: an action is permitted, or it
+raises an alert and waits for a human. What no published system in either tier
+provides is a principled account of when scrutiny may be safely relaxed. Absent
+that, the operator's only recourse for reducing prompt volume is to disable the
+control, which is precisely the failure OpenClaw documents in their own
+system~\cite{openclawroadmap}. \S\ref{sec:graduation} is our attempt at the missing
+account: not another place to put a control, but a derivation of how much evidence
+a control should require before it stops asking.
+
+\section{Conclusion}
+
+OpenClaw showed that agent-skill security cannot be one scanner's allow/block call.
+We agree, and we argue the reason is that the pipeline computes maliciousness while
+operators need permission, a different predicate, over an artifact the scanners
+never see, since 96.8\% of what an agent executes does not appear in the document
+they inspect. We contribute the control point that closes that specific gap: a
+deterministic resolver cheap enough (1.03\,$\mu$s) to sit on every action, a
+per-lane trust ledger, and promotion thresholds derived from the operator's own
+stated tolerance rather than a vendor's constant.
+
+We are equally direct about the limit. A skill whose harm is a hardcoded recipient,
+an undisclosed scope, or a persuasive instruction produces no action for a gate to
+resolve, and no policy strictness changes that. It is exactly the surface a
+semantic scanner reads and we do not. Two candidate predicates that would have
+widened our reach failed our own false-positive bar and were not shipped.
+Composition is not a diplomatic conclusion here; it is what the measurements
+support: scan the skill, and govern the action.
+
+\begin{thebibliography}{9}
+
+\bibitem{clawhubsignals}
+V.~Koc, P.~Erichsen, J.~Tomlinson, A.~Rivera, M.~Appel, N.~Paz.
+\emph{ClawHub Security Signals: When VirusTotal, Static Analysis, and SkillSpector
+Disagree}. arXiv:2606.01494, May 2026.
+
+\bibitem{clawhubdataset}
+OpenClaw. \emph{ClawHub Security Signals} [Dataset].
+\url{https://huggingface.co/datasets/OpenClaw/clawhub-security-signals}, 2026.
+MIT License.
+
+\bibitem{openclawblog}
+V.~Koc, P.~Erichsen. \emph{OpenClaw Collaborates with NVIDIA for Stronger Agent
+Skill Security}. OpenClaw Blog, June 1, 2026.
+
+\bibitem{openclawroadmap}
+J.~Merhi. \emph{Where OpenClaw Security Is Heading}. OpenClaw Blog, May 15, 2026.
+
+\bibitem{skillmd2026}
+S.~Saha, F.~Faghih, S.~Feizi. \emph{Under the Hood of SKILL.md: Semantic
+Supply-chain Attacks on AI Agent Skill Registry}. arXiv:2605.11418, 2026.
+
+\bibitem{trajectory2026}
+\emph{Securing Agentic AI: From Per-Action Checks to Trajectory Assurance}.
+arXiv:2608.01558, 2026.
+
+\bibitem{temporal2026}
+\emph{Enforcing Temporal Constraints for LLM Agents}. arXiv:2512.23738, 2026.
+
+\end{thebibliography}
+
+\end{document}
