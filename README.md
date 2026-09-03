@@ -4,6 +4,25 @@ A profile for agent authority, lifecycle evidence, and release receipts.
 
 ## The Problem
 
+Agents have started doing real work on real systems. They install packages,
+edit code, call APIs, move money, and click through live sites on a user's
+behalf.
+
+Most of what goes wrong there does not look like an attack. Nobody was
+hijacked and nothing was injected. Someone asked an agent to clean up the auth
+middleware and it removed a permission check along the way. Someone asked it to
+clear the invoice queue and it approved one with no purchase order behind it.
+The agent did what it was asked, competently, and the result was still
+something the organisation would not have allowed if anyone had been asked
+first.
+
+Existing controls are built to find an attacker, and this is not that. The
+question is not *was this malicious*. It is *was this permitted*, and that has
+a different answer at every organisation. A two-person startup and a bank do
+not owe each other the same answer about who may push to production or read a
+credentials file. That answer is not a property of the artifact, so it cannot
+be settled by inspecting one.
+
 AI skills and agents are becoming portable executable assets. Developers need a common way to answer the questions that matter before an agent acts:
 
 - What is this agent or skill allowed to do?
@@ -77,6 +96,47 @@ observe -> supervised -> act_with_approval -> bounded_autonomous
 ```
 
 `revoked` is terminal until a new approval process explicitly restores use. Authority is applied per action class, not only per agent or skill.
+
+## When Authority Should Change
+
+The states above describe where authority can go. They do not say what
+justifies moving. A profile that leaves that open permits an implementation to
+reach `bounded_autonomous` after a single clean run, which is conformant and
+indefensible.
+
+Two failure modes bound the answer. Hold every consequential action forever and
+operators disable the control, which is the documented history of alerting
+products; a control that is off protects nobody. Promote on a short clean
+streak and authority is granted on evidence that does not support it. Ten clean
+approvals feels sufficient. By the rule of three, observing zero failures in
+ten trials bounds the true failure rate at 25.9% with 95% confidence.
+
+The transition threshold is therefore derived rather than chosen. For a class
+whose tolerable failure rate is `e`, the clean-run count required at confidence
+`1 - d` is:
+
+```text
+N = ceil( ln(d) / ln(1 - e) )
+```
+
+At 95% confidence:
+
+| Action class | Tolerable failure rate | Clean runs required |
+|---|---|---|
+| Docs, tests, reads | 10% | 29 |
+| Shell execution | 5% | 59 |
+| Business logic, dependencies | 2% | 149 |
+| Deploy, IAM, CI configuration | 0.5% | 598 |
+| Remote execution, credentials, secrets, destructive | 0% | never |
+
+The tolerable failure rate is the operator's parameter, not the profile's. The
+last row is the profile's: some action classes admit no finite `N`, because no
+length of clean record makes an unrecoverable action recoverable. An
+implementation that promotes such a class is not conformant.
+
+This is what `ActionReceipt` is for beyond audit. Each recorded decision is one
+unit of evidence in one lane, so the record an operator accumulates by using a
+governed system is the same record that eventually justifies a transition.
 
 ## Why The Boundary Needs A Profile
 
