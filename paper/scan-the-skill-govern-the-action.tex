@@ -659,6 +659,33 @@ widened our reach failed our own false-positive bar and were not shipped.
 Composition is not a diplomatic conclusion here; it is what the measurements
 support: scan the skill, and govern the action.
 
+\section*{Availability}
+
+Every measurement in this paper can be re-derived from public artifacts.
+
+The corpus is OpenClaw's own dataset, MIT licensed, at
+\url{https://huggingface.co/datasets/OpenClaw/clawhub-security-signals}. The
+scanner-agreement figures in \S\ref{sec:layers} need nothing else: they are two
+SQL queries in that dataset's own browser console.
+
+The profile, this paper, and the script that reproduces \S\ref{sec:permission}
+are at \url{https://github.com/pheo-ai/open-agent-trust-system} under Apache
+2.0. The script classifies the corpus through a released implementation rather
+than a private build, so the result does not depend on access to ours:
+
+\begin{lstlisting}
+pip install pheo-oats pandas pyarrow requests
+oats start --no-browser &
+python research/reproduce_clawhub.py
+\end{lstlisting}
+
+The implementation used for every measurement here is \texttt{pheo-oats}
+0.5.2, published for macOS, Linux, and Windows at
+\url{https://pypi.org/project/pheo-oats/}. The resolver's decision path
+contains no model, so a rerun reproduces the same classes rather than
+approximating them. The live-agent experiments in \S\ref{sec:runtime} and
+\S\ref{sec:divergence} depend on a model's behaviour and will vary.
+
 \begin{thebibliography}{9}
 
 \bibitem{clawhubsignals}
