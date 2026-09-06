@@ -36,8 +36,8 @@ and 81.9\% of flagged skills are caught by one scanner alone~\cite{clawhubsignal
 We take that finding as given and argue the open question is not \emph{which scanner
 is right} but \emph{which question is being asked}. Every signal in that pipeline
 answers
-``is this skill malicious?'' Nobody answers ``is this action permitted on this
-machine, by this operator, right now?'' That second question has a different
+``is this skill malicious?'' None of them answers ``is this action permitted on this
+machine, by this operator, right now?'', and that second question has a different
 answer on the same artifact depending on whose infrastructure it runs on.
 
 We report three measurements over 66,192 public ClawHub skill versions and a live
@@ -54,7 +54,7 @@ Third, we set out what each layer structurally cannot see, including our own: a
 gate that reads actions is blind to harm that never becomes one. These blind spots
 do not coincide, which is why the layers compose rather than compete.
 
-We contribute the missing control point: a deterministic consequence resolver
+We contribute one design for the missing control point: a deterministic resolver
 (1.03\,$\mu$s mean, 3.27\,$\mu$s worst case, no model in the decision path) feeding
 a per-(resource, class) trust ledger whose promotion thresholds are derived from an
 operator's own stated risk tolerance rather than asserted. The common flat rule of
@@ -151,9 +151,9 @@ before, that do not exist at publish time and are not properties of the file.
   (\S\ref{sec:permission}).
 \item \textbf{The scanned artifact is not the executed artifact.} Of 93 commands a
   live agent issued while following real skill documentation, 3 (3.2\%) appear
-  verbatim in that documentation (\S\ref{sec:divergence}). This is, to our
-  knowledge, the first direct measurement of the gap between what agent-skill
-  static analysis inspects and what actually executes.
+  verbatim in that documentation (\S\ref{sec:divergence}). Agent tool-use logging is
+  well established; what we have not found measured elsewhere is the gap between what
+  agent-skill static analysis inspects and what the agent then executes.
 \item \textbf{A live demonstration.} A real agent, real skills the registry cleared
   with quoted high-confidence rationales, a real gate, blocked before execution
   (\S\ref{sec:runtime}).
@@ -250,9 +250,9 @@ Command shape & Resolved as & Outcome \\
 \texttt{find \textasciitilde{} -name credentials -exec cat \{\} +} & shell execution & \textbf{evades} \\
 \bottomrule
 \end{tabular}
-\caption{Five of nine obfuscated shapes we tried defeat the resolver. A syntactic
-classifier matches a finite set of forms, and an adversary who knows the set can
-route around it.}
+\caption{Five of nine obfuscated shapes we tried defeat the resolver. This is an
+illustration, not a systematic adversarial evaluation: we wrote the nine shapes
+ourselves and a determined adversary would look harder.}
 \label{tab:evade}
 \end{table}
 
@@ -413,6 +413,7 @@ Class absent from every documented block & 34 & 36.6\% \\
 \end{tabular}
 \caption{What an agent actually runs, against what the document says. 96.8\% of
 executed commands do not appear in the artifact the scanners inspected.}
+\label{tab:divergence}
 \end{table}
 
 Agents do not transcribe documentation; they recompose it. They chain a check onto
@@ -427,8 +428,8 @@ sample where recomposition manufactured a \emph{higher-severity} class than the
 document contained. The claim this experiment supports is therefore precise and
 narrower than it may first appear: the executed string is essentially never the
 documented string, so document-based analysis reasons about a proxy. But in this
-sample, the proxy did not fail in a dangerous direction. We report the absence of
-that stronger result deliberately.
+sample, the proxy did not fail in a dangerous direction. We report the absence of that stronger
+result because a reader would otherwise assume it.
 
 \section{Experiment: Live Runtime Verification}
 \label{sec:runtime}
@@ -736,10 +737,11 @@ OpenClaw showed that agent-skill security cannot be one scanner's allow/block ca
 We agree, and we argue the reason is that the pipeline computes maliciousness while
 operators need permission, a different predicate, over an artifact the scanners
 never see: across 93 commands from 40 skills, 96.8\% of what the agent executed did
-not appear in the document they inspect. We contribute the control point that closes that specific gap: a
-deterministic resolver cheap enough (1.03\,$\mu$s) to sit on every action, a
-per-lane trust ledger, and promotion thresholds derived from the operator's own
-stated tolerance rather than a vendor's constant.
+not appear in the document they inspect. Our contribution is a control point for
+that gap: a deterministic resolver cheap enough (1.03\,$\mu$s) to sit on every
+action, a per-lane trust ledger, and promotion thresholds derived from the operator's
+own stated tolerance rather than a vendor's constant. We do not claim it is the only
+such design, and \S\ref{sec:threat} bounds what this one withstands.
 
 We are equally direct about the limit. A skill whose harm is a hardcoded recipient,
 an undisclosed scope, or a persuasive instruction produces no action for a gate to
