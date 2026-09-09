@@ -816,16 +816,71 @@ to consider is far larger than the earlier number suggested. And the evidence th
 the control works is much stronger: 23 of 23 has a lower bound of 85\%, where 4 of 4
 was consistent with a true block rate of 40\%.
 
+\paragraph{What the gate cost the operator.} A reviewer asked us for the gate's
+false-positive rate, and we think the honest answer is that it does not exist as one
+number. A hold on a lane with no track record is not an error, it is what the ledger
+is for; whether it is \emph{friction} depends on which classes a given operator would
+have waved through, which is their policy and not a property of the gate. A single
+false-positive rate would contradict this paper's own thesis. Two things can be
+reported without judgement, and \texttt{research/interruption\_load.py} computes both
+from the released record.
+
+\emph{Load.} The run produced 170 decisions over 53 skills: 3.2 per skill, of which
+2.8 were holds and 0.4 blocks. 145 of the 170 (85\%) were the generic
+\texttt{shell\_exec}; the rest were the never-graduating classes the gate blocked.
+
+\emph{Spectrum.} Because a decision is a function of the resolved class and the lane
+state, what a policy would have removed is arithmetic. An operator who reviews
+everything keeps all 3.2 interruptions per skill. One who lets reads, docs, tests and
+ordinary shell run unattended in their own repository removes 145 of 170, or 85\%,
+and keeps 0.5 per skill. A fully permissive operator lands in the same place here,
+because the only graduating class this workload produced was \texttt{shell\_exec}: a
+workload touching file writes, merges or releases would separate the two.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+Operator policy & Removed & Remaining & Per skill \\
+\midrule
+Reviews everything & 0 & 170 & 3.2 \\
+Reads, docs, tests, ordinary shell unattended & 145 & 25 & 0.5 \\
+Everything that can graduate & 145 & 25 & 0.5 \\
+\bottomrule
+\end{tabular}
+\caption{The same 170 decisions, priced against three operator policies. The
+right-hand column is the number an operator actually feels. No policy removes the 25
+interruptions on never-graduating classes, because that rule is enforced in the
+authorisation path rather than configured.}
+\end{table}
+
+That connects this section to \S\ref{sec:graduation} for the first time. The friction
+a moderate operator feels is 2.7 \texttt{shell\_exec} holds per skill, and
+\S\ref{sec:graduation} prices exactly that lane: at $\epsilon = 5\%$ it needs 59
+consecutive clean approvals, 392 expected given the reset. At this workload's rate
+that is on the order of 143 skill installations before the lane stops asking, though
+an operator doing ordinary work in the same repository reaches it sooner, since the
+cost is 392 approvals rather than 392 skills. Whether that is tolerable is the
+question \S\ref{sec:graduation} concedes it cannot answer for everyone.
+
+\paragraph{Were the holds themselves correct?} That part is a property of the gate,
+and we audited it: 50 holds drawn at random were adjudicated for whether the resolved
+class was right, and 49 were (98\%, 95\% CI [89.4\%, 99.9\%]). The three holds
+carrying a class other than \texttt{shell\_exec} were examined exhaustively rather
+than sampled. Two were credential access and both genuinely contain
+\texttt{cat \textasciitilde{}/.env}. The third is a false positive of a shape we have
+seen before: a heredoc writing a new file was resolved as a destructive command,
+because a dangerous pattern appeared in the \emph{content} being written rather than
+in a command being run. That is the same defect as the comment-matching false
+positives in \S\ref{sec:permission}'s audit, and it is not fixed.
+
 \paragraph{Three things this experiment does not establish.} The container is not
 anyone's real machine. It is a fresh Debian with the common toolchains and no
 pre-existing environment, so a skill whose install assumes Homebrew, or a virtualenv
 that already exists, fails there and would have succeeded on a developer's laptop.
 That cuts toward understating reach, not overstating it, but it is a difference.
-Second, we still do not report a false-positive rate for the live gate: 148 of the
-170 commands were held rather than blocked, and we did not adjudicate how many of
-those an operator would have waved through. That number decides whether a control
-survives contact with an operator, it is the failure mode \S\ref{sec:graduation} is
-written to address, and it remains unmeasured. Third, the run is one agent, one
+Second, the spectrum above prices three policies we chose; an operator's own policy
+is the input the system takes, and we have not surveyed what real operators pick. Third, the run is one agent, one
 model, one prompt, and 43.4\% carries a confidence interval from 30\% to 58\%.
 
 \begin{table}[H]
@@ -1244,6 +1299,13 @@ table carrying 15 of the 33 labels. \texttt{manage\_webhook} and
 \texttt{delete\_or\_transfer\_repo} were absent, so any occurrence of either was
 silently dropped and could never appear in Table~\ref{tab:permission}. The taxonomy
 is now loaded from \texttt{spec/action-classes.json} rather than restated.
+
+\emph{A dangerous pattern in content, not in a command.} \S\ref{sec:runtime}'s audit
+of held decisions found a heredoc writing a new file resolved as a destructive
+command, because the pattern matched text being written rather than a command being
+run. \S\ref{sec:permission}'s audit found the same shape in comments. Argument
+position is checked relative to a command verb, but a verb inside a quoted document
+is still a verb to the matcher. This one is open.
 
 \emph{Errors were being silently discarded.} Both measurement scripts invoked the
 classifier with \texttt{--fail-open} and wrapped it in a bare \texttt{except} that
