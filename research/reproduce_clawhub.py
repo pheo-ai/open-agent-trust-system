@@ -9,18 +9,22 @@ an agent to fetch code off the network and run it.
     oats start --no-browser &
     python research/reproduce_clawhub.py
 
-Defaults to the 3,339-skill eval_holdout split, which takes a few minutes.
-Pass --split train for the full 66,192-skill corpus and a much longer wait.
+That downloads about 1.6 GB and takes a few hours. It defaults to the whole
+corpus, all four splits, 66,192 skills, because that is the population the
+paper reports. Pass --split eval_holdout for a 3,339-skill smoke test; the
+numbers will not match the paper and the script says so when you do.
 
 Nothing here is privileged. The dataset is MIT licensed and public, the
-classifier is the one in the wheel you installed, and the numbers printed
-at the end are the ones quoted in the README.
+classifier is the one in the wheel you installed, the class taxonomy is
+spec/action-classes.json in this repository, and the numbers printed at the
+end are the ones quoted in the paper.
 """
 import argparse
 import json
 import subprocess
 import sys
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -31,40 +35,25 @@ import extract
 
 DATASET = "OpenClaw/clawhub-security-signals"
 PARQUET_API = f"https://datasets-server.huggingface.co/parquet?dataset={DATASET}"
+SPEC = Path(__file__).resolve().parent.parent / "spec" / "action-classes.json"
 
-# Classes no freshly installed skill should run unattended. Mirrors the
-# gateway's own never-graduates set, minus secret_change: that one fires
+# The taxonomy is single-sourced from the published spec rather than
+# restated here, so this script cannot drift from the gateway's own class
+# set. An earlier version hardcoded 15 of the 33 labels, which silently
+# dropped every occurrence of the two never-graduating classes whose
+# labels were missing.
+_CLASSES = json.loads(SPEC.read_text())
+LABEL_TO_KEY = {c["label"]: c["key"] for c in _CLASSES}
+NEVER_GRADUATES = {c["key"] for c in _CLASSES if not c["graduates"]}
+
+# Of the never-graduating classes we exclude secret_change. It fires
 # correctly on any documented .env reference, which nearly every skill
-# needing an API key has, making it a true classification and a weak
-# risk signal. Including it roughly doubles the headline number for no
-# gain in meaning.
-UNEARNED = {
-    "shell_remote_exec",
-    "shell_credential_access",
-    "shell_destructive",
-    "iam_change",
-    "deploy",
-    "modify_github_actions",
-    "manage_webhook",
-    "delete_or_transfer_repo",
-}
-LABEL_TO_KEY = {
-    "Remote code execution": "shell_remote_exec",
-    "Credential access": "shell_credential_access",
-    "Destructive command": "shell_destructive",
-    "Shell command": "shell_exec",
-    "Secrets": "secret_change",
-    "IAM": "iam_change",
-    "Deploy": "deploy",
-    "Business logic": "business_logic",
-    "File change": "apply_patch_to_branch",
-    "Docs": "docs_write",
-    "Tests": "test_write",
-    "Dependencies": "dependency_change",
-    "Boilerplate": "boilerplate_write",
-    "Automation": "modify_github_actions",
-    "Read": "read_files",
-}
+# needing an API key has, making it a true classification and a weak risk
+# signal. Including it roughly doubles the headline number for no gain in
+# meaning. Classes reachable only from GitHub or computer-use tool calls,
+# never from a Bash command string, are left in and simply score zero;
+# a zero is informative.
+UNEARNED = NEVER_GRADUATES - {"secret_change"}
 
 
 def find_oatsctl():
@@ -95,56 +84,76 @@ def make_room(gateway):
 def download(split, cache=Path("clawhub-data")):
     cache.mkdir(exist_ok=True)
     files = requests.get(PARQUET_API, timeout=60).json()["parquet_files"]
-    urls = [f["url"] for f in files if f["split"] == split]
-    if not urls:
+    wanted = [f for f in files if split == "all" or f["split"] == split]
+    if not wanted:
         raise SystemExit(f"no parquet files for split {split!r}")
     frames = []
-    for i, url in enumerate(urls):
-        path = cache / f"{split}_{i:04d}.parquet"
-        if not path.exists():
-            print(f"  downloading {path.name} ...", flush=True)
-            with requests.get(url, stream=True, timeout=600) as resp:
+    for f in wanted:
+        name = f["url"].rstrip(".parquet").split("/")[-1]
+        path = cache / f"{f['split']}_{name}.parquet"
+        if not path.exists() or path.stat().st_size != f["size"]:
+            print(f"  downloading {path.name} ({f['size'] / 1e6:.0f} MB) ...",
+                  flush=True)
+            with requests.get(f["url"], stream=True, timeout=1800) as resp:
                 resp.raise_for_status()
                 with open(path, "wb") as fh:
-                    for chunk in resp.iter_content(1 << 20):
+                    for chunk in resp.iter_content(1 << 22):
                         fh.write(chunk)
         frames.append(pd.read_parquet(path))
-    return pd.concat(frames, ignore_index=True).drop_duplicates("skill_slug")
+    df = pd.concat(frames, ignore_index=True)
+    # skill_slug is already unique in the published corpus; this is a guard,
+    # not a deduplication step, and it removes nothing on the current release.
+    return df.drop_duplicates("skill_slug")
 
 
 def classify_one(args):
-    """Every fenced block in one skill, through the real hook client."""
+    """Every fenced block in one skill, through the real hook client.
+
+    Returns (slug, classes, n_errors). Errors are counted rather than
+    swallowed: a block that fails to classify is not a block that
+    classified as harmless, and the two must not be pooled.
+    """
     oatsctl, gateway, room, row = args
-    classes = set()
+    classes, errors = set(), 0
     for block in extract.fenced_blocks(row.skill_md_content or ""):
         try:
             proc = subprocess.run(
                 [oatsctl, "hook", "pre-tool-use", "--gateway", gateway,
                  "--project", room, "--repo", "clawhub/reproduction",
-                 "--agent-id", "reproduce", "--fail-open"],
+                 "--agent-id", "reproduce"],
                 input=json.dumps(
                     {"tool_name": "Bash", "tool_input": {"command": block}}
                 ),
-                capture_output=True, text=True, timeout=30,
+                capture_output=True, text=True, timeout=60,
             )
             payload = json.loads(proc.stdout.strip().splitlines()[-1])
             reason = payload["hookSpecificOutput"]["permissionDecisionReason"]
         except Exception:
+            errors += 1
             continue
         label = reason.split(" to ")[0].split(" at ")[0].strip()
         key = LABEL_TO_KEY.get(label)
         if key:
             classes.add(key)
-    return row.skill_slug, classes
+        else:
+            errors += 1
+    return row.skill_slug, classes, errors
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--split", default="eval_holdout",
-                    choices=["eval_holdout", "test", "validation", "train"])
+    ap.add_argument("--split", default="all",
+                    choices=["all", "eval_holdout", "test", "validation", "train"])
     ap.add_argument("--gateway", default="http://127.0.0.1:8788")
     ap.add_argument("--workers", type=int, default=16)
     args = ap.parse_args()
+
+    if args.split != "all":
+        print("=" * 68)
+        print(f"  WARNING: --split {args.split} is a subset of the corpus.")
+        print("  The paper reports over all four splits (66,192 skills).")
+        print("  The numbers below will NOT match the paper. Use --split all.")
+        print("=" * 68 + "\n")
 
     oatsctl = find_oatsctl()
     try:
@@ -161,13 +170,22 @@ def main():
     df = download(args.split)
     print(f"  {len(df):,} skills")
 
+    # Extraction accounting, reported rather than left implicit.
+    estats = {}
+    for txt in df.skill_md_content.fillna(""):
+        extract.fenced_blocks(txt, estats)
+    print(f"  {estats.get('blocks', 0):,} shell blocks extracted; "
+          f"{estats.get('tagged_nonshell', 0):,} fences skipped as non-shell; "
+          f"{estats.get('truncated', 0):,} truncated at 2,000 chars")
+
     print("\nclassifying through the shipped OATS resolver ...")
     started = time.time()
-    results = {}
+    results, total_errors = {}, 0
     work = [(oatsctl, args.gateway, room, row) for row in df.itertuples()]
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        for i, (slug, classes) in enumerate(pool.map(classify_one, work), 1):
+        for i, (slug, classes, errs) in enumerate(pool.map(classify_one, work), 1):
             results[slug] = classes
+            total_errors += errs
             if i % 250 == 0:
                 rate = i / (time.time() - started)
                 print(f"  {i:,}/{len(work):,}  ({rate:.0f}/s)", flush=True)
@@ -184,16 +202,25 @@ def main():
     gap["publisher"] = gap.skill_slug.str.split("/").str[0]
 
     print("\n" + "=" * 68)
-    print(f"skills in split                          {len(df):>8,}")
-    print(f"called clean by all four scanners         {all_clean.sum():>8,}")
-    print(f"...of those, instructing an unearned action {len(gap):>6,}")
-    print(f"...from distinct publishers               {gap.publisher.nunique():>8,}")
+    print(f"skills in corpus                            {len(df):>8,}")
+    print(f"called clean by all four signals             {all_clean.sum():>8,}")
+    print(f"...of those, instructing an unearned action  {len(gap):>8,}")
+    print(f"...from distinct publishers                  {gap.publisher.nunique():>8,}")
+    print(f"blocks that failed to classify               {total_errors:>8,}")
     print("=" * 68)
 
-    from collections import Counter
     counts = Counter(k for s in gap.oats_classes for k in s if k in UNEARNED)
-    for key, n in counts.most_common():
-        print(f"  {key:28} {n:>6,}")
+    print("\nby class (a skill instructing two classes appears in both rows):")
+    for key in sorted(UNEARNED):
+        print(f"  {key:28} {counts.get(key, 0):>6,}")
+    print(f"  {'sum of rows':28} {sum(counts.values()):>6,}  "
+          f"vs {len(gap):,} distinct skills")
+
+    print("\nper publisher, so a single vendor's repeated installer line is visible:")
+    per_pub = gap.groupby("publisher").size().sort_values(ascending=False)
+    print(f"  mean skills per publisher   {per_pub.mean():>8.2f}")
+    print(f"  median                      {per_pub.median():>8.0f}")
+    print(f"  largest single publisher    {per_pub.iloc[0]:>8,}  ({per_pub.index[0]})")
 
     out = Path("clawhub_reproduction.csv")
     gap[["skill_slug", "clawscan_verdict", "skillspector_severity"]].to_csv(

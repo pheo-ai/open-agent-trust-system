@@ -3,3 +3,10 @@ __pycache__/
 .DS_Store
 .pytest_cache/
 .venv/
+.venv*/
+
+# Downloaded corpus and reproduction output, not source.
+clawhub-data/
+clawhub_reproduction.csv
+evasion_bench_results.json
+.pheo-gateway/

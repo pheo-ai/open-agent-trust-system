@@ -1,0 +1,200 @@
+[
+  {
+    "key": "delete_or_transfer_repo",
+    "label": "Delete/transfer repo",
+    "severity": 95,
+    "graduates": false
+  },
+  {
+    "key": "shell_destructive",
+    "label": "Destructive command",
+    "severity": 94,
+    "graduates": false
+  },
+  {
+    "key": "shell_remote_exec",
+    "label": "Remote code execution",
+    "severity": 92,
+    "graduates": false
+  },
+  {
+    "key": "deploy",
+    "label": "Deploy",
+    "severity": 90,
+    "graduates": false
+  },
+  {
+    "key": "manage_webhook",
+    "label": "Webhook",
+    "severity": 90,
+    "graduates": false
+  },
+  {
+    "key": "secret_change",
+    "label": "Secrets",
+    "severity": 90,
+    "graduates": false
+  },
+  {
+    "key": "shell_credential_access",
+    "label": "Credential access",
+    "severity": 89,
+    "graduates": false
+  },
+  {
+    "key": "modify_branch_protection",
+    "label": "Branch protection",
+    "severity": 88,
+    "graduates": false
+  },
+  {
+    "key": "iam_change",
+    "label": "IAM",
+    "severity": 85,
+    "graduates": false
+  },
+  {
+    "key": "merge_to_protected_branch",
+    "label": "Protected merge",
+    "severity": 85,
+    "graduates": false
+  },
+  {
+    "key": "modify_github_actions",
+    "label": "Automation",
+    "severity": 85,
+    "graduates": false
+  },
+  {
+    "key": "trigger_workflow",
+    "label": "Trigger workflow",
+    "severity": 85,
+    "graduates": false
+  },
+  {
+    "key": "computer_commit",
+    "label": "Irreversible action",
+    "severity": 75,
+    "graduates": false
+  },
+  {
+    "key": "dependency_change",
+    "label": "Dependencies",
+    "severity": 70,
+    "graduates": true
+  },
+  {
+    "key": "apply_patch_to_branch",
+    "label": "File change",
+    "severity": 55,
+    "graduates": true
+  },
+  {
+    "key": "business_logic",
+    "label": "Business logic",
+    "severity": 55,
+    "graduates": true
+  },
+  {
+    "key": "submit_pr_review",
+    "label": "PR review",
+    "severity": 55,
+    "graduates": true
+  },
+  {
+    "key": "merge_to_branch",
+    "label": "Merge",
+    "severity": 50,
+    "graduates": true
+  },
+  {
+    "key": "manage_release",
+    "label": "Release",
+    "severity": 45,
+    "graduates": true
+  },
+  {
+    "key": "computer_type",
+    "label": "Typed input",
+    "severity": 40,
+    "graduates": true
+  },
+  {
+    "key": "boilerplate_write",
+    "label": "Boilerplate",
+    "severity": 35,
+    "graduates": true
+  },
+  {
+    "key": "fork_repo",
+    "label": "Fork",
+    "severity": 35,
+    "graduates": true
+  },
+  {
+    "key": "shell_exec",
+    "label": "Shell command",
+    "severity": 35,
+    "graduates": true
+  },
+  {
+    "key": "manage_workflow_run",
+    "label": "Workflow run",
+    "severity": 30,
+    "graduates": true
+  },
+  {
+    "key": "test_write",
+    "label": "Tests",
+    "severity": 30,
+    "graduates": true
+  },
+  {
+    "key": "computer_interact",
+    "label": "Screen interaction",
+    "severity": 25,
+    "graduates": true
+  },
+  {
+    "key": "docs_write",
+    "label": "Docs",
+    "severity": 20,
+    "graduates": true
+  },
+  {
+    "key": "manage_issue_or_pr",
+    "label": "Issue/PR admin",
+    "severity": 15,
+    "graduates": true
+  },
+  {
+    "key": "open_pr",
+    "label": "Pull request",
+    "severity": 10,
+    "graduates": true
+  },
+  {
+    "key": "propose_patch",
+    "label": "Draft patch",
+    "severity": 10,
+    "graduates": true
+  },
+  {
+    "key": "computer_observe",
+    "label": "Screen observe",
+    "severity": 0,
+    "graduates": true
+  },
+  {
+    "key": "connector_config",
+    "label": "Connector setup",
+    "severity": 0,
+    "graduates": true
+  },
+  {
+    "key": "read_files",
+    "label": "Read",
+    "severity": 0,
+    "graduates": true
+  }
+]
