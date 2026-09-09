@@ -47,6 +47,7 @@ portable agent or skill
 
 ```text
 schemas/             JSON Schema draft 
+spec/                the 33 consequence classes: key, severity rank, graduation
 validator/           dependency-free profile and policy checks
 reference_runtime/   OATS Reference Runtime: policy gate, receipt emitter, transition demo
 examples/            coding, invoice, literature, and marketing policies
@@ -148,14 +149,21 @@ answers on the same file.
 Measured against the largest public agent-skill registry, using the scan
 results that registry publishes itself:
 
-- **822 skills**, from 187 unrelated publishers, are marked clean by every
+- **705 skills**, from 135 distinct publishers, are marked clean by every
   scanner in that registry's pipeline while instructing an agent to fetch
   code from the network and execute it. Clean is the correct verdict. It is
-  not the same as permitted.
+  not the same as permitted. Read that number with its distribution: one
+  publisher accounts for 506 of the 705, and 117 of the 135 publishers
+  contribute exactly one skill each. A hand audit of 100 puts the detector's
+  precision at 92% (95% CI [85%, 97%]).
 - Of **93 commands** a live agent issued while following real skill
-  documentation, **3** appeared in that documentation. The scanned artifact
-  is not the executed artifact.
-- Four scanners reading the same files agree on **45%** of them.
+  documentation, **3** appeared verbatim in that documentation, and **36.6%**
+  had a consequence class that appeared in no code block of it at all. The
+  scanned artifact is not the executed artifact.
+- All four signals return clean on **44.2%** of skills. That is agreement on a
+  verdict, not agreement on what they looked at: the registry's own study
+  reports that any two of the underlying scanners overlap on at most 10.4% of
+  their combined positives.
 
 Method, limits, and what the numbers do not show:
 [Scan the Skill, Govern the Action](paper/scan-the-skill-govern-the-action.pdf).
@@ -186,10 +194,14 @@ oats start --no-browser &
 python research/reproduce_clawhub.py
 ```
 
-On the 3,339-skill holdout split this takes a few minutes and prints the
-count with a per-class breakdown, writing the skills themselves to
-`clawhub_reproduction.csv`. Pass `--split train` for the full 66,192-skill
-corpus, which is where the 822 figure comes from.
+This defaults to the whole corpus, all four splits, 66,192 skills, which is
+what the paper reports. It downloads about 1.6 GB and runs for several hours.
+It prints the count with a per-class breakdown and the per-publisher
+distribution, and writes the skills themselves to `clawhub_reproduction.csv`.
+
+Pass `--split eval_holdout` for a 3,339-skill smoke test that finishes in
+minutes; the numbers will not match the paper and the script says so when you
+do. No single split reproduces the paper: `train` alone is 46,325 skills.
 
 ## The benchmark
 
@@ -208,9 +220,16 @@ oats start --no-browser &
 python research/evasion_bench.py
 ```
 
-The reference implementation resolves **77%**. The per-technique breakdown is the
-useful part: wrapping and chaining resolve completely, staged fetch-then-execute
-resolves at zero, because no single command in it is remote execution. Adding a
+The reference implementation resolves **52%** macro-averaged over the eight
+rewriting techniques, which is the headline because per-technique case counts are
+an artifact of how many variants each generator emits. Micro-averaged over cases it
+is 75%, or 77% counting the identity controls. A case counts as resolved if it
+lands at or above the base action's severity, since over-classifying still protects
+the operator.
+
+The per-technique breakdown is the useful part: wrapping and chaining resolve
+completely, staged fetch-then-execute resolves at zero, because no single command in
+it is remote execution. Adding a
 technique is a function returning command strings, and new techniques are more
 valuable than tuning against the existing ones.
 
