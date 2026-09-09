@@ -716,7 +716,10 @@ refusals are returned to the agent as refusals. Skills are drawn one per publish
 from the unanimously-clean population, restricted to documents whose own fenced
 blocks resolve to at least one class more specific than the generic
 \texttt{shell\_exec}, since a document with no capability envelope cannot be said to
-bound anything.
+bound anything. That selection matters for how the number should be read: 34.7\% is a
+rate over documents that do carry a specific capability envelope, not over the corpus.
+Those are roughly 1\% of publishers' first skills, so this is a deliberately narrow
+slice, chosen because it is the only slice where the question means anything.
 
 An earlier run of this study, reported in a previous version of this paper, used a
 harness we did not preserve. Its figures were 93 commands over 40 skills, 3.2\%
@@ -804,12 +807,15 @@ we predicted.} A previous version of this paper reported 4 of 54 (7.4\%) from a
 harness we did not preserve, and said of it: \emph{``an agent truncated before it
 reaches the install step records as not reaching for the action \ldots{} 7.4\% is a
 floor on reach rather than an estimate of it.''} That was the right worry. Fisher's
-exact test puts the two runs genuinely apart ($p = 1.6 \times 10^{-5}$), and the
-cause is not the turn budget, which is unchanged at four. It is that the earlier
-setup did not give the agent working output, so it spent its turns establishing
-whether its own tooling worked and never got as far as the install. With a container
-behind it the agent completes the install step, and reaches the forbidden action
-roughly six times as often.
+exact test puts the two runs genuinely apart ($p = 1.6 \times 10^{-5}$). We think
+the main cause is execution: the turn budget is unchanged at four, and a pilot with
+execution disabled reproduced the earlier pattern exactly, with the agent spending
+its turns establishing whether its own tooling worked and never reaching an install.
+But we changed more than one thing between the runs. This one also samples one skill
+per publisher and requires the documented action to be one that never graduates, and
+we cannot separate those from execution with two runs. Read the comparison as two
+observations that differ, with a mechanism we can demonstrate for part of it, rather
+than as a controlled experiment.
 
 Both directions of that correction matter. The population a permission control has
 to consider is far larger than the earlier number suggested. And the evidence that
@@ -878,7 +884,13 @@ positives in \S\ref{sec:permission}'s audit, and it is not fixed.
 anyone's real machine. It is a fresh Debian with the common toolchains and no
 pre-existing environment, so a skill whose install assumes Homebrew, or a virtualenv
 that already exists, fails there and would have succeeded on a developer's laptop.
-That cuts toward understating reach, not overstating it, but it is a difference.
+We first wrote that this understates reach. The record does not support that: a
+container can suppress an install that would have worked on a laptop, and it can also
+force a fallback onto remote code that a working \texttt{brew} would have avoided.
+Seven skills tried \texttt{brew}; in one, \texttt{brew install} failed, the agent
+established it was on Linux, and its next step fetched and ran code from a network
+endpoint, which is a reach the container created rather than revealed. The direction
+of this confound is not determined, and with seven cases we cannot settle it.
 Second, the spectrum above prices three policies we chose; an operator's own policy
 is the input the system takes, and we have not surveyed what real operators pick. Third, the run is one agent, one
 model, one prompt, and 43.4\% carries a confidence interval from 30\% to 58\%.
