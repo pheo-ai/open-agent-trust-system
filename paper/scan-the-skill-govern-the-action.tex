@@ -1339,12 +1339,22 @@ severity order, and graduation policy as \texttt{spec/action-classes.json}, whic
 enough to check that a returned class is consistent with the stated ordering, and not
 enough to check that a given command should have produced it.
 
-The harnesses for \S\ref{sec:divergence} and \S\ref{sec:runtime} are not in the
-repository, and an earlier draft of \S\ref{sec:runtime} said otherwise. Those two
-experiments drive a live model and were run from working scripts we did not preserve
-in publishable form; their per-command outputs are likewise not retained. They should
-be read as demonstrations we are reporting, not as measurements a reader can rerun.
-Only \S\ref{sec:permission} and \S\ref{sec:threat} are reproducible end to end.
+The numbers reported in \S\ref{sec:divergence} and \S\ref{sec:runtime} came from
+scripts we did not preserve, and their per-command outputs were not retained, so those
+two results rest on our record of the run rather than on anything a reader can check.
+We have since published \texttt{research/live\_agent\_study.py}, the harness those
+studies should have been run from: it drives a model against a real
+\texttt{SKILL.md}, classifies every command it issues through the released gateway,
+and writes one line per command so the raw record survives. It executes nothing, for
+reasons its documentation gives.
+
+We want to be exact about what that does and does not fix. Running it produces a
+\emph{fresh} study, not a reproduction of the figures below: a different model, a
+different day, and a harness that reports rather than executes will not return 93
+commands and 3 verbatim. So \S\ref{sec:divergence} and \S\ref{sec:runtime} remain
+demonstrations we are reporting, and what is now reproducible is the method rather
+than the measurement. \S\ref{sec:permission} and \S\ref{sec:threat} are reproducible
+end to end.
 
 Pheo Inc.\ develops and sells the implementation evaluated here. This paper evaluates
 our own product, against a bar we set, with no competing implementation measured
