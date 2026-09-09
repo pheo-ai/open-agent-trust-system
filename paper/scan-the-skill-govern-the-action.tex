@@ -1,4 +1,9 @@
 \documentclass[10pt]{article}
+% arXiv builds with pdfLaTeX, whose default input encoding is not UTF-8 on
+% older TeX Live. Declaring both keeps the source portable to whatever
+% toolchain builds it.
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage[margin=1in]{geometry}
 \usepackage{booktabs}
 \usepackage{url}
@@ -345,9 +350,9 @@ reports 64 cases across nine rewriting techniques.
 \toprule
 Technique & Cases & Resolved & Example \\
 \midrule
-wrapper            & 20 & 100\% & \texttt{bash -c "…"} \\
-chained            & 15 & 100\% & \texttt{true; …; true} \\
-interpreter        & 4 & 75\% & \texttt{python3 -c "exec(urlopen(…))"} \\
+wrapper            & 20 & 100\% & \texttt{bash -c "\ldots{}"} \\
+chained            & 15 & 100\% & \texttt{true; \ldots{}; true} \\
+interpreter        & 4 & 75\% & \texttt{python3 -c "exec(urlopen(\ldots{}))"} \\
 variable           & 5 & 60\% & \texttt{U=URL; curl -fsSL \$U | bash} \\
 base64             & 3 & 33\% & \texttt{echo <b64> | base64 -d | sh} \\
 indirect read      & 4 & 25\% & \texttt{find \textasciitilde{} -name credentials -exec cat \{\} +} \\
