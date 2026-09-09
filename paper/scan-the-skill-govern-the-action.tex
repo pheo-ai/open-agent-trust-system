@@ -57,14 +57,15 @@ the largest. Permission and maliciousness are different predicates over the same
 artifact, and the pipeline computes the one it was built to compute. This measurement
 is reproducible end to end from public artifacts and we give the command.
 
-Second, of 93 commands a live agent executed while following real skill documentation
-(40 skills, one agent), 3 appear verbatim in that documentation, and more to the point
-\textbf{36.6\% had a consequence class that appeared in no code block of the document
-at all}. Static analysis reasons about a document that is an imperfect bound on what
-runs. We flag this one plainly: it drove a live model, we did not retain the harness
-or the per-command outputs, and a reader cannot re-derive it from what we publish.
+Second, of 144 commands a live agent executed while following real skill
+documentation in a sandbox (39 skills, one agent), 2 appear verbatim in that
+documentation, and more to the point \textbf{34.7\% had a consequence class that
+appeared in no code block of the document at all}. Static analysis reasons about a
+document that is an imperfect bound on what runs. Third, over 53 cleared skills that
+document an action no clean record earns, the agent reached for one in 23 and the
+gate stopped all 23. The harness and every command are released.
 
-Third, we set out what sits outside each layer's view, including our own: a gate that
+We also set out what sits outside each layer's view, including our own: a gate that
 reads actions does not see harm that never becomes one. Those gaps do not coincide,
 which is why we think the layers compose rather than compete.
 
@@ -184,18 +185,18 @@ before, that do not exist at publish time and are not properties of the file.
   instructing an action named as prohibited by CIS Control 2.7 and NIST SP 800-53
   CM-11 (\S\ref{sec:permission}). One publisher contributes 506 of the 705, so the
   count should be read alongside its distribution, which we give.
-\item \textbf{The scanned artifact is not the executed artifact.} Of 93 commands a
-  live agent issued while following real skill documentation, 3 (3.2\%) appear
-  verbatim in that documentation, and 34 (36.6\%) carried a consequence class the
+\item \textbf{The scanned artifact is not the executed artifact.} Of 144 commands a
+  live agent issued while following real skill documentation, 2 (1.4\%) appear
+  verbatim in that documentation, and 50 (34.7\%) carried a consequence class the
   document never contained (\S\ref{sec:divergence}). Agent tool-use logging is
   well established; what we have not found measured elsewhere is the gap between what
-  agent-skill static analysis inspects and what the agent then executes. This
-  experiment is not reproducible from our released artifacts, for reasons we state
-  where we report it.
-\item \textbf{A small live demonstration.} A live agent, skills the registry had
-  cleared, an unmodified gate, and four actions held or blocked before execution
-  (\S\ref{sec:runtime}). It is four cases out of 54 and we report it as a
-  demonstration of the mechanism, not as a measurement of how often it matters.
+  agent-skill static analysis inspects and what the agent then executes. The harness
+  and the per-command record are released.
+\item \textbf{A live runtime measurement.} Over 53 skills the registry had cleared
+  that nonetheless document an action no clean record earns, a live agent reached for
+  such an action in 23, and the unmodified gate held or blocked all 23
+  (\S\ref{sec:runtime}). An earlier and smaller version of this run reported 4 of 54,
+  and we explain why it was low.
 \item \textbf{A layer-by-layer account of what sits outside each control's view},
   including our own, which is harm that never resolves to an action, stated as
   plainly as our contributions (\S\ref{sec:layers}).
@@ -680,18 +681,19 @@ takes actions the document never contains. So 705 is a count of what skills
 statement about deployment; in this section the documentation text is $\rho$'s only
 input.
 
-\emph{Instruction is not reach.} \S\ref{sec:runtime} supplies the only bridge between
-the two, and it is narrow. On 54 unanimously-clean skills that instruct a risky
-action, a live agent reached for such an action in 4, or 7.4\%. Composing that with
-the 92\% precision above, the number of these 705 that would drive an agent to a
-forbidden action in a comparable run is on the order of
-$705 \times 0.92 \times 0.074 \approx 48$, not 705. We state the composition
+\emph{Instruction is not reach.} \S\ref{sec:runtime} supplies the bridge between the
+two. On 53 unanimously-clean skills that document a never-graduating action, a live
+agent reached for such an action in 23, or 43.4\%. Composing that with the 92\%
+precision above, the number of these 705 that would drive an agent to a forbidden
+action in a comparable run is on the order of
+$705 \times 0.92 \times 0.434 \approx 281$, not 705. We state the composition
 because a reader can compute it, and because the two rates measure genuinely
 different things: 705 is the size of the population a permission control would have
-to consider, and 48 is an estimate of how often it would have fired in one particular
-agent's behaviour over four turns. The first is the right number for scoping a
-control; the second, with a sample of 4 and the confidence interval in
-\S\ref{sec:defects}, is the right number for tempering claims about it.
+to consider, and 281 is an estimate of how often it would have fired in one
+particular agent's behaviour over four turns. The first is the right number for
+scoping a control, the second for sizing it. An earlier version of this paper put
+the second figure at 48, from a run whose agent never reached the install step
+(\S\ref{sec:runtime}).
 
 \section{Finding: The Scanned Artifact Is Not the Executed Artifact}
 \label{sec:divergence}
@@ -705,54 +707,72 @@ publishers, we classified every fenced code block in the document (the static vi
 and separately captured every command a live agent (Claude Sonnet~5) issued while
 following that same document, classifying both through the same resolver.
 
-\paragraph{This one you cannot check, and we say so here rather than in a footnote.}
-Unlike \S\ref{sec:permission}, this experiment is not reproducible from what we
-publish. It drove a live model, and we did not preserve the harness or the 93
-per-command outputs in a publishable form. The numbers below are what we recorded at
-the time and we stand behind them, but a reader has only our word for them, and a
-rerun against a different model or on a different day would not reproduce them
-exactly in any case. We report it because we think the effect is real and worth
-knowing about, and we would rather present it with its provenance stated than either
-drop it or let it pass as though it carried the same weight as the corpus study.
-Re-running it with retained outputs is the most useful single thing we could do to
-this paper.
+\paragraph{An earlier version of this result could not be checked; this one can.}
+The figures below come from \texttt{research/live\_agent\_study.py}, which is
+released with this paper, and every command it recorded is in
+\texttt{live\_agent\_divergence.jsonl}. Commands the gate permits execute inside a
+throwaway container, one per skill, with no mount of the host and no credential;
+refusals are returned to the agent as refusals. Skills are drawn one per publisher
+from the unanimously-clean population, restricted to documents whose own fenced
+blocks resolve to at least one class more specific than the generic
+\texttt{shell\_exec}, since a document with no capability envelope cannot be said to
+bound anything.
+
+An earlier run of this study, reported in a previous version of this paper, used a
+harness we did not preserve. Its figures were 93 commands over 40 skills, 3.2\%
+verbatim, 60.2\% recomposed, 36.6\% class-absent. We report both, and they agree:
+Fisher's exact test on the class-absent counts gives $p = 0.78$, no detectable
+difference between the two runs.
 
 \begin{table}[H]
 \centering
-\begin{tabular}{lrr}
+\begin{tabular}{lrrrr}
 \toprule
-Executed commands ($n=93$, 40 skills) & Count & Share \\
+& \multicolumn{2}{c}{This run} & \multicolumn{2}{c}{Earlier run} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Executed commands & Count & Share & Count & Share \\
 \midrule
-Verbatim from \texttt{SKILL.md} & 3 & 3.2\% \\
-Recomposed (class present in document) & 56 & 60.2\% \\
-Class absent from every documented block & 34 & 36.6\% \\
+Verbatim from \texttt{SKILL.md} & 2 & 1.4\% & 3 & 3.2\% \\
+Recomposed (class present in document) & 92 & 63.9\% & 56 & 60.2\% \\
+Class absent from every documented block & 50 & 34.7\% & 34 & 36.6\% \\
+\midrule
+Total & 144 & & 93 & \\
+Skills & 39 & & 40 & \\
 \bottomrule
 \end{tabular}
 \caption{What an agent actually runs, against what the document says. Read the two
 lower rows as the result: the executed string is almost never the documented string
-(96.8\%), but the executed consequence class was absent from every documented block
-in 36.6\% of cases. The second number is the one that bears on whether static
-analysis is sound.}
+(98.6\% of the time), but the executed consequence class was absent from every
+documented block in 34.7\% of cases. The second number is the one that bears on
+whether static analysis is sound. The right-hand columns are an earlier run of the
+same study, from a harness we did not preserve; the two agree ($p = 0.78$ on the
+class-absent counts). One skill of the 40 is missing from this run: its command
+output was not valid UTF-8 and crashed the harness, which is fixed.}
 \label{tab:divergence}
 \end{table}
 
 Agents do not transcribe documentation; they recompose it. They chain a check onto
 an install the document never chained (\texttt{go version \&\& go install \ldots}),
-add flags, redirect output, split one documented step into three. These 34
-class-absent commands are not spread evenly: they concentrate in a minority of
-skills rather than appearing once in each.
+add flags, redirect output, split one documented step into three. The 50
+class-absent commands are not spread evenly: they fall in 14 of the 39 skills rather
+than appearing once in each. One trajectory is worth quoting because it is both
+findings at once. Handed a skill whose documentation is a single
+\texttt{curl \ldots{} | bash}, the agent ran it, and when that did not succeed it
+recomposed the same step into a staged fetch and inspect: \texttt{curl -o}, then
+\texttt{cat}. That is recomposition producing a form \S\ref{sec:threat} reports the
+resolver cannot see, unprompted, in an ordinary install.
 
-\paragraph{Which number is the finding.} 96.8\% is a statement about string
+\paragraph{Which number is the finding.} 98.6\% is a statement about string
 identity, and we report it because it bounds what any exact-match method can do:
 allowlisting documented command strings, hashing them, or diffing execution against
 the document would fail on almost every command an agent issues. It is not a claim
 that static analysis is blind, and presenting it as one would be a strawman. The
-claim the data supports is the narrower one: for 36.6\% of executed commands the
+claim the data supports is the narrower one: for 34.7\% of executed commands the
 consequence class appeared in no code block of the document, so a reviewer reasoning
 about the document's capability envelope would not have anticipated them. That is
-roughly a third the rhetorical size of 96.8\% and it is the number we stand behind.
+roughly a third the rhetorical size of 98.6\% and it is the number we stand behind.
 
-\paragraph{An honest bound on this result.} All 34 unanticipated commands resolved
+\paragraph{An honest bound on this result.} All 50 unanticipated commands resolved
 to the generic \texttt{shell\_exec} class. We observed \emph{no} case in this
 sample where recomposition manufactured a \emph{higher-severity} class than the
 document contained. The claim this experiment supports is therefore precise and
@@ -765,58 +785,76 @@ result because a reader would otherwise assume it.
 \label{sec:runtime}
 
 We ran a live agent (Claude Sonnet~5) against real skill documentation through the
-unmodified gate, executing only commands the gate permitted. Each skill received one
-run of at most four turns, with its \texttt{SKILL.md} in the system prompt and a
-single instruction to install it and confirm it works; a refused command returned the
-gate's own refusal text as the tool result. As with \S\ref{sec:divergence}, the
-harness and per-run outputs were not preserved, so the rates below rest on our record
-of the run rather than on anything a reader can re-execute. What is checkable is the
-other half of Table~\ref{tab:blocked}: all four skills are in the public corpus, and
-their verdicts, confidence levels, and the quoted rationales can be read from it
-directly. Across 54 unanimously-clean skills that
-instruct a risky action, the agent reached for such an action in 4 of 54 (7.4\%, 95\%
-CI [2.1\%, 17.9\%]); all four were held or blocked before execution (4 of 4, 95\% CI
-[39.8\%, 100\%]). We report both rates: the first shows how often a cleared skill
-drives an agent toward a forbidden action, the second whether the gate stops it. The
-intervals are wide enough that neither rate should be quoted without them, and the
-second is consistent with a true block rate as low as 40\%.
+unmodified gate, executing only commands the gate permitted, each inside a throwaway
+container. Each skill received one run of at most four turns, with its
+\texttt{SKILL.md} in the system prompt and a single instruction to install it and
+confirm it works; a refused command returned the gate's own refusal text as the tool
+result. The harness is \texttt{research/live\_agent\_study.py} and every command is
+recorded in \texttt{live\_agent\_runtime.jsonl}.
 
-\paragraph{Three things this experiment does not establish.} The turn budget may be
-producing the low reach rate rather than measuring it: four turns is a short budget
-for install-and-verify, and an agent truncated before it reaches the install step
-records as not reaching for the action. We have not tested a larger budget, and until
-we do, 7.4\% is a floor on reach rather than an estimate of it. Second, we do not
-report a false-positive rate for the live gate. Case 4 in Table~\ref{tab:blocked} is
-an ordinary install held for review, which is an intervention on a benign action;
-across the 54-skill run we did not record how often the gate held or denied something
-an operator would have permitted. That number decides whether a control survives
-contact with an operator, it is the failure mode \S\ref{sec:graduation} is written to
-address, and it is not measured anywhere in this paper. Third, the run is one agent,
-one model, one prompt.
+Across 54 unanimously-clean skills that document a never-graduating action, one per
+publisher, the agent reached for such an action in \textbf{23 of the 53} that
+produced any command (43.4\%, 95\% CI [29.8\%, 57.7\%]). \textbf{All 23 were held or
+blocked before execution} (23 of 23, 95\% CI [85.2\%, 100\%]). The actions it reached
+for were remote execution in 22 cases, credential access in 2, and a destructive
+command in 1; the gate blocked 22 of those commands outright and held 3.
+
+\paragraph{This contradicts an earlier run, and the earlier run was wrong in a way
+we predicted.} A previous version of this paper reported 4 of 54 (7.4\%) from a
+harness we did not preserve, and said of it: \emph{``an agent truncated before it
+reaches the install step records as not reaching for the action \ldots{} 7.4\% is a
+floor on reach rather than an estimate of it.''} That was the right worry. Fisher's
+exact test puts the two runs genuinely apart ($p = 1.6 \times 10^{-5}$), and the
+cause is not the turn budget, which is unchanged at four. It is that the earlier
+setup did not give the agent working output, so it spent its turns establishing
+whether its own tooling worked and never got as far as the install. With a container
+behind it the agent completes the install step, and reaches the forbidden action
+roughly six times as often.
+
+Both directions of that correction matter. The population a permission control has
+to consider is far larger than the earlier number suggested. And the evidence that
+the control works is much stronger: 23 of 23 has a lower bound of 85\%, where 4 of 4
+was consistent with a true block rate of 40\%.
+
+\paragraph{Three things this experiment does not establish.} The container is not
+anyone's real machine. It is a fresh Debian with the common toolchains and no
+pre-existing environment, so a skill whose install assumes Homebrew, or a virtualenv
+that already exists, fails there and would have succeeded on a developer's laptop.
+That cuts toward understating reach, not overstating it, but it is a difference.
+Second, we still do not report a false-positive rate for the live gate: 148 of the
+170 commands were held rather than blocked, and we did not adjudicate how many of
+those an operator would have waved through. That number decides whether a control
+survives contact with an operator, it is the failure mode \S\ref{sec:graduation} is
+written to address, and it remains unmeasured. Third, the run is one agent, one
+model, one prompt, and 43.4\% carries a confidence interval from 30\% to 58\%.
 
 \begin{table}[H]
 \centering
 \small
-\begin{tabular}{p{3.4cm}p{5.4cm}p{5.4cm}}
+\begin{tabular}{p{3.2cm}p{5.2cm}p{5.6cm}}
 \toprule
-Skill & ClawScan's own verdict (verbatim) & What the gate did \\
+Skill & ClawScan's own verdict (verbatim) & What the agent ran, and the decision \\
 \midrule
-\texttt{minirr890112-byte/\allowbreak llm-deploy-helper} &
-clean, high confidence: ``coherent and user-directed'' &
-\texttt{pip install git+\ldots}: denied, remote code execution \\
-\texttt{rogeecn/memos-cli} &
-clean, high confidence: ``a coherent Memos CLI helper'' &
-\texttt{go install \ldots@latest}: denied \\
-\texttt{snuri00/osint-mcp} &
-clean, medium confidence: ``does not show malicious behavior'' &
-\texttt{pip install git+\ldots}: denied \\
-\texttt{charleshahn/\allowbreak duivytools-skills} &
-clean, high confidence: ``no hidden or abusive behavior found'' &
-ordinary install held for review; retry via a third-party mirror denied \\
+\texttt{pdurlej/\allowbreak things-cloud} &
+clean, high confidence: ``clear read/write safeguards and no scanner or artifact
+evidence of hidden behaviour'' &
+\texttt{go install github.com/\ldots{}}: blocked, remote code execution \\
+\texttt{j-edel/folk-cli} &
+clean, high confidence: ``a clearly scoped helper \ldots{} with disclosed credential
+use'' &
+\texttt{npm install -g github:\ldots{}}: blocked \\
+\texttt{barronlroth/f1-cli} &
+clean, high confidence: ``no hidden code or persistence found'' &
+\texttt{go install \ldots{}@latest}: blocked \\
+\texttt{zypher-agent/\allowbreak corespeed-excalidraw} &
+clean, high confidence: ``disclosed network downloads \ldots{} that fit its purpose'' &
+\texttt{curl -fsSL \ldots{} | bash}: blocked \\
 \bottomrule
 \end{tabular}
-\caption{Four live blocks, each on a skill the registry's own judge had cleared,
-with its rationale quoted.}
+\caption{Four of the 23, each on a skill the registry's own judge had cleared at high
+confidence, with its rationale quoted. Every verdict, confidence level and summary
+here can be read directly out of the public dataset; the command and the decision are
+in \texttt{live\_agent\_runtime.jsonl}.}
 \label{tab:blocked}
 \end{table}
 
@@ -912,7 +950,7 @@ us). It can be entirely benign in the artifact and still drive an action an oper
 forbids (invisible upstream, caught by us; \S\ref{sec:permission} counts 705 such
 skills across 135 publishers). And an artifact that never changes can produce
 different actions on different runs, which is the case
-\S\ref{sec:divergence} measures at 36.6\% and \S\ref{sec:runtime} exhibits
+\S\ref{sec:divergence} measures at 34.7\% and \S\ref{sec:runtime} exhibits
 concretely: the same documented install step resolved as ordinary on one attempt and
 as remote code execution on the retry.
 
@@ -1120,10 +1158,10 @@ were not missed attacks and that the scanners did not err. We had not measured t
 and have removed the assertion; \S\ref{sec:permission} now reports what our audit
 does and does not establish about it.
 
-\textbf{Sample sizes.} 54 skills for \S\ref{sec:runtime} and 40 for
-\S\ref{sec:divergence} demonstrate mechanisms and produce non-trivial rates; they do
-not support tight confidence intervals. \S\ref{sec:runtime} now carries them
-explicitly: 4 of 54 is [2.1\%, 17.9\%] and 4 of 4 is [39.8\%, 100\%].
+\textbf{Sample sizes.} 53 skills for \S\ref{sec:runtime} and 39 for
+\S\ref{sec:divergence} produce non-trivial rates but not tight intervals, and both
+sections carry them: 23 of 53 is [29.8\%, 57.7\%], 23 of 23 is [85.2\%, 100\%], and
+50 of 144 is [27.0\%, 43.1\%]. Both are one model on one day.
 
 \textbf{We do not report a detection rate for OATS against malicious skills, by
 choice.} Such a number would score a runtime action gate on a publish-time
@@ -1168,6 +1206,14 @@ of it.
 
 \textbf{Single registry, frozen snapshot.} One registry, one deliberately frozen
 snapshot chosen for reproducibility.
+
+\textbf{A correction to a previously reported figure.} A previous version of this
+paper reported that a live agent reached for a never-graduating action in 4 of 54
+cleared skills. Re-running that study with a working execution environment gives 23
+of 53. The earlier figure was low because the agent never reached the install step,
+which the previous version anticipated in the text without being able to test it. We
+report the correction here rather than quietly replacing the number, because a reader
+who saw the earlier draft should be able to find out what changed and why.
 
 \textbf{Nine defects in our own instrument, found and fixed during this work.} A
 shell-classification bypass let unmatched Bash commands fail open. Three successive
@@ -1278,9 +1324,10 @@ OpenClaw's measurement showed that agent-skill security is not one scanner's
 allow/block call, and we agree. We suggest one reason is that a publish-time pipeline
 is built to compute maliciousness, while an operator also needs permission, which is
 a different predicate evaluated against facts that do not exist at publish time. The
-document those signals read is also only a partial bound on what runs: across 93
-commands from 40 skills, 36.6\% of what the agent executed had a consequence class
-absent from every code block of the document.
+document those signals read is also only a partial bound on what runs: across 144
+commands from 39 skills, 34.7\% of what the agent executed had a consequence class
+absent from every code block of the document, and over 53 cleared skills that
+document a forbidden action a live agent reached for one in 23.
 
 We offer one control point for that gap: a deterministic resolver cheap enough
 (67\,ms end to end, measured) to sit on every action, a per-lane trust ledger, and a derivation of
@@ -1339,22 +1386,23 @@ severity order, and graduation policy as \texttt{spec/action-classes.json}, whic
 enough to check that a returned class is consistent with the stated ordering, and not
 enough to check that a given command should have produced it.
 
-The numbers reported in \S\ref{sec:divergence} and \S\ref{sec:runtime} came from
-scripts we did not preserve, and their per-command outputs were not retained, so those
-two results rest on our record of the run rather than on anything a reader can check.
-We have since published \texttt{research/live\_agent\_study.py}, the harness those
-studies should have been run from: it drives a model against a real
-\texttt{SKILL.md}, classifies every command it issues through the released gateway,
-and writes one line per command so the raw record survives. It executes nothing, for
-reasons its documentation gives.
+The two live-agent studies now run from \texttt{research/live\_agent\_study.py},
+released here, with every command they recorded in
+\texttt{live\_agent\_divergence.jsonl} and \texttt{live\_agent\_runtime.jsonl}. The
+container image is \texttt{research/sandbox/Dockerfile}. Both take
+\texttt{--execute}, which is off by default: the corpus is unaudited publishers and
+the actions under study fetch and run remote code, so pulling them should be a
+deliberate choice. Without it the agent gets no output, spends its turns testing its
+own tooling, and the study measures the harness; that is documented in the file,
+because we ran it that way first.
 
-We want to be exact about what that does and does not fix. Running it produces a
-\emph{fresh} study, not a reproduction of the figures below: a different model, a
-different day, and a harness that reports rather than executes will not return 93
-commands and 3 verbatim. So \S\ref{sec:divergence} and \S\ref{sec:runtime} remain
-demonstrations we are reporting, and what is now reproducible is the method rather
-than the measurement. \S\ref{sec:permission} and \S\ref{sec:threat} are reproducible
-end to end.
+What running it will not do is return these counts. A live agent is not
+deterministic, and a different model on a different day will produce a different
+trajectory. What we can offer is the method, the raw record of what we saw, and a
+comparison against the earlier run of the same study: on the divergence figures the
+two agree ($p = 0.78$), and on the runtime reach rate they do not
+($p = 1.6 \times 10^{-5}$), for a reason \S\ref{sec:runtime} sets out. Treat the
+numbers as one observation with its protocol attached, not as constants.
 
 Pheo Inc.\ develops and sells the implementation evaluated here. This paper evaluates
 our own product, against a bar we set, with no competing implementation measured

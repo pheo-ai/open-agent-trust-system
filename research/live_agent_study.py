@@ -82,6 +82,7 @@ import subprocess
 import sys
 import time
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
@@ -173,6 +174,9 @@ class Sandbox:
                 ["docker", "exec", "-u", "agent", self.name,
                  "bash", "-lc", command],
                 capture_output=True, text=True, timeout=self.timeout,
+                # Real command output is not always valid UTF-8, and a
+                # decode error should cost one command, not the skill.
+                errors="replace",
             )
         except subprocess.TimeoutExpired:
             return "(timed out after %ds)" % self.timeout
@@ -316,7 +320,11 @@ def main():
         raise SystemExit("Set ANTHROPIC_API_KEY to run a live agent.")
     import anthropic
 
-    client = anthropic.Anthropic()
+    # Bound the model call. A run without this stalled 39 minutes on one
+    # skill, 38 of 40 in, and lost the summary: the SDK's default timeout
+    # is long and its retries multiply it. A hung request should cost one
+    # skill, not the study.
+    client = anthropic.Anthropic(timeout=120.0, max_retries=3)
     oatsctl = find_oatsctl()
     try:
         requests.get(args.gateway + "/api/projects", timeout=5).raise_for_status()
@@ -353,34 +361,44 @@ def main():
     want = "a never-graduating action" if args.mode == "runtime" else "shell commands"
     print("selecting clean skills whose documentation contains %s ..." % want,
           flush=True)
-    block_cache, keep = {}, []
-    seen_publishers = set()
-    target = args.n * 4
+    # At most one skill per publisher. The corpus is dominated by a single
+    # vendor repeating one installer line (see the paper), and a sample of
+    # 40 of those would measure one document 40 times.
+    first_per_publisher, seen_publishers = [], set()
     for row in pool.itertuples():
         publisher = row.skill_slug.split("/")[0]
-        # At most one skill per publisher. The corpus is dominated by a single
-        # vendor repeating one installer line (see the paper), and a sample of
-        # 40 of those would measure one document 40 times.
-        if publisher in seen_publishers:
-            continue
+        if publisher not in seen_publishers:
+            seen_publishers.add(publisher)
+            first_per_publisher.append(row)
+
+    def qualifies(row):
+        """Classify one candidate's documented blocks. Thread-safe: each
+        worker uses its own cache, since classification is a pure function
+        of the command string."""
         classes, _ = documented_classes(
-            oatsctl, args.gateway, room, row.skill_md_content, block_cache)
+            oatsctl, args.gateway, room, row.skill_md_content, {})
         if not classes:
-            continue
+            return None
         if args.mode == "runtime":
-            if not (classes & UNEARNED):
-                continue
+            return row.Index if (classes & UNEARNED) else None
         # Divergence asks whether the document's capability envelope bounds
         # what the agent runs. A document whose only documented class is the
         # generic shell_exec has no envelope to speak of: every shell command
         # the agent could issue is "a class present in the document", and the
         # measure is vacuous. Require at least one specific class.
-        elif classes <= {"shell_exec"}:
-            continue
-        seen_publishers.add(publisher)
-        keep.append(row.Index)
-        if len(keep) >= target:
-            break
+        return None if classes <= {"shell_exec"} else row.Index
+
+    # Scanning candidates one at a time is what made an earlier run appear
+    # to hang: each skill costs a classification per fenced block, and a
+    # sequential scan for enough candidates ran for tens of minutes before
+    # the study proper began. Widen the pool in parallel and stop early.
+    keep, target, block_cache = [], args.n * 2, {}
+    with ThreadPoolExecutor(max_workers=12) as pool_exec:
+        for index in pool_exec.map(qualifies, first_per_publisher):
+            if index is not None:
+                keep.append(index)
+                if len(keep) >= target:
+                    break
     if not keep:
         raise SystemExit("No skills matched the selection criteria.")
     pool = pool.loc[keep]
