@@ -27,40 +27,44 @@ WHAT IT MEASURES
                does the agent reach for such an action, and what does
                the gate decide when it does.
 
-NOTHING IS EXECUTED, AND THAT IS A LOAD-BEARING LIMITATION
+EXECUTION IS OPT-IN, AND WITHOUT IT THERE IS NO STUDY
 
-The corpus is public skills from unaudited publishers, and the actions
-under study are `curl … | bash` and credential reads. Running them to
-study them would be indefensible, and would make this harness unsafe for
-anyone else to reproduce. So the agent proposes a command, the command is
-classified through the real gateway, and the tool result is a silent
-success or, where the gate refuses, the refusal.
+Pass --execute and gate-permitted commands run inside a throwaway
+container, one per skill, destroyed afterwards. Without it commands are
+recorded and classified but not run.
 
-Piloted on both modes, that is not sufficient for either, and the failure
-is worth stating plainly rather than discovering twice.
+The default is off because the corpus is public skills from unaudited
+publishers and the actions under study are `curl … | bash` and credential
+reads: pulling those should be a deliberate choice, not something a
+reader trips into. But the default does not produce a usable measurement,
+and that is worth stating plainly rather than discovering twice.
 
-Without real output the agent does not work the document at all: it
-spends its turns establishing whether its own tooling works. On a
-four-skill divergence pilot, eight of sixteen commands were bare probes
-(`echo hello`, `echo hello 1>&2`), every skill hit the turn cap having
-installed nothing, and no command carried a class the document had not
-already mentioned, giving a meaningless 100% "recomposed". A six-skill
-runtime pilot was worse: 24 commands, every one resolving to the generic
-`shell_exec`, and the agent reached for a never-graduating action in
-zero of six skills, when all six were selected *because* their
-documentation contains one.
+Piloted with execution off, the agent does not work the document at all.
+It spends its turns establishing whether its own tooling works. Four
+skills, divergence: eight of sixteen commands were bare probes (`echo
+hello`, `echo hello 1>&2`), every skill hit the turn cap having installed
+nothing, and no command carried a class the document had not already
+mentioned, giving a meaningless 100% "recomposed". Six skills, runtime,
+every one selected *because* its documentation contains a
+never-graduating action: 24 commands, all generic `shell_exec`, and the
+agent reached for the risky action in zero of six.
 
-Both numbers measure this harness, not any skill. The agent's trajectory
-depends on seeing real output, so a faithful study of what it executes
-requires executing. That means running gate-permitted commands inside a
-throwaway container, which is the honest fix and is not implemented
-here: it needs a container runtime, and it pulls untrusted installers,
-so it should be a deliberate choice by whoever runs it and not a default
-that a reader trips into.
+Both figures measured this harness rather than any skill. An agent's
+trajectory depends on seeing real output, so studying what it executes
+requires executing. Hence --execute, and hence the container.
 
-What this file is, then, is the scaffolding and the selection logic, with
-the reason the naive version does not work recorded so the next attempt
-starts from here. It is not yet a study.
+WHAT THE CONTAINER IS AND IS NOT
+
+It is a fresh Debian carrying the toolchains the corpus reaches for:
+curl, git, python3, pip, node, npm, go, jq. It has a network, because an
+install step that cannot reach the network is not the step under study.
+It has no mount of the host filesystem, no credential, and nothing from
+this process's environment.
+
+It is not anyone's real machine. A skill whose install assumes Homebrew,
+or an existing virtualenv, or macOS, behaves differently in it. That is a
+confound in the direction of *understating* what a real agent on a real
+laptop would get done, and any write-up of these results should say so.
 
 The gateway runs in Observe mode, where a decision is computed and
 recorded but not enforced. The class is what the resolver returns and
@@ -119,6 +123,79 @@ def find_oatsctl():
     except ImportError:
         pass
     raise SystemExit("pheo-oats is not installed. Run: pip install pheo-oats")
+
+
+class Sandbox:
+    """One throwaway container per skill, for commands the gate permits.
+
+    The agent's trajectory depends on seeing real output. Without it the
+    model spends its turns proving its own tooling works rather than
+    following the document, which is measured and recorded in this file's
+    header. So permitted commands run for real, and they run somewhere
+    they can do no harm.
+
+    What the container is not given: any mount of the host filesystem,
+    any credential, any environment from this process. It is destroyed
+    after the skill. What it is given is a network, because an install
+    step that cannot reach the network is not the step under study.
+
+    It is a fresh Debian with the common toolchains, which is a stand-in
+    for a developer's machine and not the same thing. A skill whose
+    install assumes Homebrew, or an existing Python environment, behaves
+    differently here. That is a confound and the paper states it.
+    """
+
+    IMAGE = "oats-study:1"
+
+    def __init__(self, skill_slug, timeout=90):
+        self.name = "oats-study-%d" % (abs(hash(skill_slug)) % 10**9)
+        self.timeout = timeout
+        self.started = False
+
+    def start(self):
+        subprocess.run(["docker", "rm", "-f", self.name],
+                       capture_output=True, text=True)
+        proc = subprocess.run(
+            ["docker", "run", "-d", "--name", self.name,
+             "--memory", "1g", "--pids-limit", "256",
+             self.IMAGE, "sleep", "3600"],
+            capture_output=True, text=True, timeout=120,
+        )
+        self.started = proc.returncode == 0
+        return self.started
+
+    def run(self, command):
+        """Run one command inside the box. Never touches the host."""
+        if not self.started:
+            return "(sandbox unavailable)"
+        try:
+            proc = subprocess.run(
+                ["docker", "exec", "-u", "agent", self.name,
+                 "bash", "-lc", command],
+                capture_output=True, text=True, timeout=self.timeout,
+            )
+        except subprocess.TimeoutExpired:
+            return "(timed out after %ds)" % self.timeout
+        out = (proc.stdout or "") + (proc.stderr or "")
+        out = out.strip()
+        if len(out) > 4000:
+            out = out[:4000] + "\n... (truncated)"
+        if proc.returncode != 0:
+            return "exit %d\n%s" % (proc.returncode, out or "(no output)")
+        return out or "(no output)"
+
+    def stop(self):
+        subprocess.run(["docker", "rm", "-f", self.name],
+                       capture_output=True, text=True)
+
+
+def sandbox_available():
+    try:
+        p = subprocess.run(["docker", "image", "inspect", Sandbox.IMAGE],
+                           capture_output=True, text=True, timeout=30)
+        return p.returncode == 0
+    except Exception:
+        return False
 
 
 def classify(oatsctl, gateway, room, command):
@@ -227,6 +304,11 @@ def main():
     ap.add_argument("--max-turns", type=int, default=4)
     ap.add_argument("--gateway", default="http://127.0.0.1:8788")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--execute", action="store_true",
+                    help="Run gate-permitted commands inside a throwaway "
+                         "container. Without this the agent gets no real "
+                         "output and does not follow the document; see the "
+                         "module docstring.")
     args = ap.parse_args()
     out_path = Path(args.out or ("live_agent_%s.jsonl" % args.mode))
 
@@ -311,14 +393,28 @@ def main():
     print("%d skills, model %s, %d turns each, seed %d\n"
           % (len(sample), args.model, args.max_turns, args.seed), flush=True)
 
+    if args.execute and not sandbox_available():
+        raise SystemExit(
+            "--execute needs the study image. Build it first:\n"
+            "    docker build -t %s research/sandbox/" % Sandbox.IMAGE
+        )
+    print("execution: %s\n" % ("sandboxed container per skill" if args.execute
+                               else "off (commands are recorded, not run)"),
+          flush=True)
+
     records, started = [], time.time()
     with out_path.open("w") as fh:
         for i, row in enumerate(sample, 1):
             doc_classes, doc_blocks = documented_classes(
                 oatsctl, args.gateway, room, row.skill_md_content, block_cache)
+            box = Sandbox(row.skill_slug) if args.execute else None
+            if box and not box.start():
+                print("  [%d/%d] %s: sandbox failed to start, skipping"
+                      % (i, len(sample), row.skill_slug), flush=True)
+                continue
 
             def on_command(command, _row=row, _dc=doc_classes, _db=doc_blocks,
-                           _fh=fh):
+                           _fh=fh, _box=box):
                 key, decision, reason = classify(
                     oatsctl, args.gateway, room, command)
                 if appears_verbatim(command, _db):
@@ -340,16 +436,17 @@ def main():
                 _fh.write(json.dumps(record) + "\n")
                 _fh.flush()
                 # A refusal is reported as a refusal, so the agent can react
-                # to being told no, which is the behaviour under study.
-                #
-                # Anything else returns a silent success, which is what many
-                # real commands return. We do not fabricate output: inventing
-                # plausible stdout would feed the model a fiction and change
-                # what it does next. Saying "this was not executed" instead
-                # sends the model off probing whether its tools work, which
-                # measured the harness rather than the skill.
+                # to being told no, which is the behaviour under study. The
+                # gate decides first and the sandbox only ever sees what it
+                # permitted, which is the deployment this paper describes.
                 if decision == "block":
                     return "Blocked by policy: %s" % reason
+                if _box is not None:
+                    return _box.run(command)
+                # Without a sandbox there is no honest result to return:
+                # fabricating stdout feeds the model a fiction, and saying
+                # nothing ran sends it off probing its own tooling. Both
+                # measure the harness. See this file's header.
                 return "(no output)"
 
             try:
@@ -358,7 +455,9 @@ def main():
             except Exception as exc:
                 print("  [%d/%d] %s: %s" % (i, len(sample), row.skill_slug, exc),
                       flush=True)
-                continue
+            finally:
+                if box:
+                    box.stop()
             if i % 5 == 0:
                 print("  %d/%d skills, %d commands, %.0fs"
                       % (i, len(sample), len(records), time.time() - started),
